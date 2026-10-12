@@ -26,6 +26,13 @@ function topAfterRender() { requestAnimationFrame(() => { window.scrollTo({ top:
 const backButton = (route, label = '返回上一步') => `<button class="secondary-btn" type="button" data-route="${route}">${label}</button>`;
 const steps = (active, labels) => `<div class="stepper" aria-label="服务步骤">${labels.map((x,i)=>`<div class="step ${i + 1 <= active ? 'active' : ''}">${i + 1}. ${x}</div>`).join('')}</div>`;
 const fraudMini = `<div class="fraud-mini"><strong>防骗提醒：</strong>请只通过“小王混剪”官方主页主动联系本人。警惕陌生账号主动私信、冒充客服或催促转账；付款前请核实身份与收款信息。</div>`;
+const paymentSection = `<div class="payment-section">
+  <p class="payment-instruction"><strong>请先截图发送给小王，等待小王确认你的预算和购机需求可以代淘。确认可以代淘后，再扫描下方二维码支付20元代淘服务费。</strong></p>
+  <div class="payment-grid" aria-label="收款二维码">
+    <div class="payment-card"><button class="zoomable" type="button" data-image="./assets/payment-wechat.jpg" data-alt="微信支付收款二维码"><img src="./assets/payment-wechat.jpg" alt="小王混剪微信支付收款二维码" width="800" height="1088" decoding="async"></button><p>微信支付 · 点击查看大图</p></div>
+    <div class="payment-card"><button class="zoomable" type="button" data-image="./assets/payment-alipay.png" data-alt="支付宝收款二维码"><img src="./assets/payment-alipay.png" alt="小王混剪支付宝收款二维码" width="1708" height="2560" decoding="async"></button><p>支付宝 · 点击查看大图</p></div>
+  </div>
+</div>`;
 const inspectionWith = '需要小王帮忙验机';
 const inspectionWithout = '不需要小王帮忙验机';
 
@@ -98,12 +105,12 @@ function taotao1() {
   const custom = t.preset === presets[3];
   return `<section class="page">
     ${steps(1, ['购机需求','服务确认','确认单'])}
-    <div class="section-head"><p class="eyebrow">我要找手机 · 第一步</p><h1>选择购机需求</h1><p>选择接近的需求；前三项会直接进入下一步。</p></div>
+    <div class="section-head"><p class="eyebrow">我要找手机 · 第一步</p><h1>选择购机需求</h1><p>选择接近的需求，确认无误后再进入下一步。</p></div>
     <div class="option-list" id="presetList">
-      ${presets.map((p,i)=>`<button class="option-card ${t.preset===p?'selected':''}" type="button" data-preset="${i}"><span class="option-dot"></span><span class="option-copy"><strong>${p}</strong></span></button>`).join('')}
+      ${presets.map((p,i)=>`<button class="option-card ${t.preset===p?'selected':''}" type="button" data-preset="${i}" aria-pressed="${t.preset===p?'true':'false'}"><span class="option-dot"></span><span class="option-copy"><strong>${p}</strong></span></button>`).join('')}
     </div>
     <div class="notice">帧率指《和平精英》手游目标帧率，实际表现取决于机型、游戏版本和设置，不保证所有机器都能达到对应帧率。</div>
-    <div class="form-reveal ${custom?'open':''}" id="customForm"><div>
+    <div class="form-reveal ${custom?'open':''}" id="customForm" aria-hidden="${custom?'false':'true'}"><div>
       <div class="card"><h3>填写自定义需求</h3><div class="form-grid" style="margin-top:16px">
         <div class="field"><label for="budget">购机预算 <span class="required">*</span></label><input id="budget" name="budget" type="number" inputmode="numeric" min="1" placeholder="例如：800" value="${esc(t.budget)}"><p class="hint">请填写人民币预算金额。</p></div>
         <div class="field"><label for="model">想要的手机型号（选填）</label><input id="model" name="model" type="text" placeholder="例如：iPhone 12、小米 12" value="${esc(t.model)}"></div>
@@ -111,9 +118,9 @@ function taotao1() {
         <div class="field"><label for="condition">外观成色</label><select id="condition" name="condition">${['外观较新','可接受轻微使用痕迹','可接受磕碰但屏幕和后盖不能裂','成色无所谓能正常使用即可'].map(x=>`<option ${t.condition===x?'selected':''}>${x}</option>`).join('')}</select></div>
         <div class="field"><label for="other">其他要求（选填）</label><textarea id="other" name="other" placeholder="可填写容量、颜色、品牌偏好等">${esc(t.other)}</textarea></div>
       </div></div>
-      <p class="error-text" id="customError" role="alert"></p>
-      <div class="actions">${backButton('home','返回首页')}<button class="primary-btn" id="customNext" type="button">下一步</button></div>
     </div></div>
+    <p class="error-text" id="presetError" role="alert"></p>
+    <div class="actions">${backButton('home','返回首页')}<button class="primary-btn" id="presetConfirm" type="button" ${t.preset?'':'disabled'}>确认选择</button></div>
   </section>`;
 }
 
@@ -147,6 +154,7 @@ function taotao3() {
       <div class="receipt-note"><strong>付款及发货规则：</strong>先支付20元服务费开始找机；确认具体机器后再支付全部手机货款。机器不支持货到付款或分期。发货时效仅供参考，实际以物流为准。</div>
       <p class="screenshot-callout">请将本页面截图发送给小王</p>
       ${fraudMini}
+      ${paymentSection}
     </div>
     <div class="actions">${backButton('taotao-2','返回修改')}<button class="primary-btn" type="button" data-route="home">完成并返回首页</button></div>
   </section>`;
@@ -192,6 +200,7 @@ function daipai3() {
       ${fraudMini}
       <div class="receipt-note">机器截图尽量包含商品编号、型号和页面价格。</div>
       <p class="screenshot-callout">请将本页面截图，以及您在拍机堂选中的机器截图，一起私信发送给小王。</p>
+      ${paymentSection}
     </div>
     <div class="actions">${backButton('daipai-2','返回修改')}<button class="primary-btn" type="button" data-route="home">完成并返回首页</button></div>
   </section>`;
@@ -228,11 +237,24 @@ function bindPage(route) {
     document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', () => {
       const value = presets[Number(btn.dataset.preset)];
       state.taotao.preset = value; saveState();
-      if (value === presets[3]) render(); else { state.taotao.step = 2; saveState(); go('taotao-2'); }
+      document.querySelectorAll('[data-preset]').forEach(option => {
+        const selected = option === btn;
+        option.classList.toggle('selected', selected);
+        option.setAttribute('aria-pressed', String(selected));
+      });
+      const showCustom = value === presets[3];
+      const customForm = document.querySelector('#customForm');
+      customForm?.classList.toggle('open', showCustom);
+      customForm?.setAttribute('aria-hidden', String(!showCustom));
+      const confirmButton = document.querySelector('#presetConfirm');
+      if (confirmButton) confirmButton.disabled = false;
+      const error = document.querySelector('#presetError');
+      if (error) error.textContent = '';
     }));
     ['budget','model','focus','condition','other'].forEach(id => document.querySelector(`#${id}`)?.addEventListener('input', e => { state.taotao[id] = e.target.value; saveState(); }));
-    document.querySelector('#customNext')?.addEventListener('click', () => {
-      if (!state.taotao.budget || Number(state.taotao.budget) <= 0) { document.querySelector('#customError').textContent = '请填写有效的购机预算。'; document.querySelector('#budget').focus(); return; }
+    document.querySelector('#presetConfirm')?.addEventListener('click', () => {
+      if (!state.taotao.preset) { document.querySelector('#presetError').textContent = '请先选择一项购机需求。'; return; }
+      if (state.taotao.preset === presets[3] && (!state.taotao.budget || Number(state.taotao.budget) <= 0)) { document.querySelector('#presetError').textContent = '请填写有效的购机预算。'; document.querySelector('#budget').focus(); return; }
       state.taotao.step = 2; saveState(); go('taotao-2');
     });
   }

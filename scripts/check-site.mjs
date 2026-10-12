@@ -8,6 +8,8 @@ const requiredFiles = [
   "dist/assets/video-evidence-rules.jpg",
   "dist/assets/xiaowang-portrait.jpg",
   "dist/assets/xiaowang-yunyun-collaboration.jpg",
+  "dist/assets/payment-wechat.jpg",
+  "dist/assets/payment-alipay.png",
 ];
 
 await Promise.all(requiredFiles.map((file) => access(file)));
