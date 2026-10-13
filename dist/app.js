@@ -25,6 +25,8 @@ function topAfterRender() { requestAnimationFrame(() => { window.scrollTo({ top:
 
 const backButton = (route, label = '返回上一步') => `<button class="secondary-btn" type="button" data-route="${route}">${label}</button>`;
 const steps = (active, labels) => `<div class="stepper" aria-label="服务步骤">${labels.map((x,i)=>`<div class="step ${i + 1 <= active ? 'active' : ''}">${i + 1}. ${x}</div>`).join('')}</div>`;
+const miniHomeButton = `<button class="mini-home-btn" type="button" data-route="home" title="返回首页，已填写内容会保留" aria-label="返回首页，已填写内容会保留">首页</button>`;
+const serviceHeading = (eyebrow, title, description, extraClass = '') => `<div class="section-head service-section-head ${extraClass}"><p class="eyebrow">${eyebrow}</p><div class="section-title-row"><h1>${title}</h1>${miniHomeButton}</div>${description ? `<p>${description}</p>` : ''}</div>`;
 const fraudMini = `<div class="fraud-mini"><strong>防骗提醒：</strong>请只通过“小王混剪”官方主页主动联系本人。警惕陌生账号主动私信、冒充客服或催促转账；付款前请核实身份与收款信息。</div>`;
 const shippingTrackingNotice = `<div class="receipt-note shipping-tracking"><strong>发货与物流查询：</strong>机器购买成功并确认订单后，原则上将在48小时内安排发货；如遇平台、节假日或物流异常，以小王实际通知为准。发货后，小王会第一时间将快递单号发送给您。大多数订单使用京东快递，部分订单使用顺丰快递，具体以实际发货为准。京东快递单号通常以 JDVB 或 JDX 开头。可在“京东快递”官方 App 或小程序中查询；顺丰快递单号通常以 SF 开头，可在“顺丰速运”官方 App 或小程序中查询。复制并粘贴完整单号即可；如查询时需要核验收件手机号，请以小王发送单号时一并告知的信息为准。</div>`;
 const paymentSection = `<div class="payment-section">
@@ -125,7 +127,7 @@ function taotao1() {
   const custom = t.preset === presets[3];
   return `<section class="page">
     ${steps(1, ['购机需求','服务确认','确认单'])}
-    <div class="section-head"><p class="eyebrow">我要找手机 · 第一步</p><h1>选择购机需求</h1><p>选择接近的需求，确认无误后再进入下一步。</p></div>
+    ${serviceHeading('我要找手机 · 第一步', '选择购机需求', '选择接近的需求，确认无误后再进入下一步。')}
     <div class="option-list" id="presetList">
       ${presets.map((p,i)=>`<button class="option-card ${t.preset===p?'selected':''}" type="button" data-preset="${i}" aria-pressed="${t.preset===p?'true':'false'}"><span class="option-dot"></span><span class="option-copy"><strong>${p}</strong></span></button>`).join('')}
     </div>
@@ -146,15 +148,15 @@ function taotao1() {
 
 function taotao2() {
   const t = state.taotao;
-  return `<section class="page">
+  return `<section class="page compact-service-page taotao-confirm-page">
     ${steps(2, ['购机需求','服务确认','确认单'])}
-    <div class="section-head"><p class="eyebrow">我要找手机 · 第二步</p><h1>代淘服务确认</h1><p>请阅读收费、发货与验机说明。</p></div>
+    ${serviceHeading('我要找手机 · 第二步', '代淘服务确认', '请阅读收费、发货与验机说明。', 'compact-section-head')}
     <div class="card fee-card"><small>代淘服务费</small><strong>20元</strong></div>
-    <div class="card"><h3>服务与退款规则</h3><ul class="rule-list">
+    <div class="card compact-rule-card"><h3>服务与退款规则</h3><ul class="rule-list">
       <li>客户先支付20元代淘服务费，小王收到后开始找机。</li><li>找到机器后向客户展示具体信息；客户确认满意并决定购买后，再支付全部手机货款。</li><li>如不满意推荐的机器，可以继续寻找，无需重复支付服务费。</li><li>如无法找到符合双方确认要求的机器，退还20元服务费。</li><li>如已找到符合双方约定要求的机器并完成约定的寻找服务，服务费原则上不退，法律另有规定的除外。</li><li>客户更改需求，应及时联系小王重新确认。</li>
     </ul></div>
     ${inspectionSelector(t.inspection, 'taotao')}
-    <div class="card"><h3>付款与商品说明</h3><ul class="rule-list compact"><li>二手手机为非标准化商品，每台机器的价格、成色、配置、维修情况可能不同，购买前由客户确认具体机器信息。</li><li>所有机器不支持货到付款或分期付款。确认购买后需支付全部货款再发货。</li><li>小王自有库存现货的顺丰运费由小王承担。</li></ul></div>
+    <div class="card compact-rule-card"><h3>付款与商品说明</h3><ul class="rule-list compact"><li>二手手机为非标准化商品，每台机器的价格、成色、配置、维修情况可能不同，购买前由客户确认具体机器信息。</li><li>所有机器不支持货到付款或分期付款。确认购买后需支付全部货款再发货。</li><li>小王自有库存现货的顺丰运费由小王承担。</li></ul></div>
     <label class="agreement"><input type="checkbox" id="taotaoAgree" ${t.agreed?'checked':''}><span>我已阅读并了解代淘服务规则</span></label>
     <p class="error-text" id="taotaoError" role="alert"></p>
     <div class="actions">${backButton('taotao-1')}<button class="primary-btn" id="taotaoConfirm" type="button" ${(!t.inspection||!t.agreed)?'disabled':''}>生成确认单</button></div>
@@ -168,12 +170,11 @@ function taotao3() {
     ? `<div class="summary-row"><span>购机需求</span><strong class="summary-value">自定义需求</strong></div><div class="summary-row"><span>购机预算</span><strong class="summary-value">${esc(t.budget)}元</strong></div><div class="summary-row"><span>手机型号</span><strong class="summary-value">${t.model ? esc(t.model) : '未指定'}</strong></div><div class="summary-row"><span>侧重方面</span><strong class="summary-value">${esc(t.focus)}</strong></div><div class="summary-row"><span>外观成色</span><strong class="summary-value">${esc(t.condition)}</strong></div>${t.other ? `<div class="summary-row"><span>其他要求</span><strong class="summary-value">${esc(t.other)}</strong></div>` : ''}`
     : `<div class="summary-row"><span>购机需求</span><strong class="summary-value">${esc(t.preset)}</strong></div>`;
   const inspectionClass = t.inspection === inspectionWith ? 'inspection-with' : 'inspection-without';
-  return `<section class="page">
-    ${steps(3, ['购机需求','服务确认','确认单'])}
+  return `<section class="page receipt-page">
     <div class="card receipt receipt-taotao" id="receipt">
       <div class="receipt-hero">
         <div class="receipt-service-icon" aria-hidden="true"><span class="receipt-phone-outline"><span></span></span><b class="receipt-icon-mark">!</b></div>
-        <div class="receipt-identity"><h2>代淘确认单</h2><p>小王混剪 · 购机服务</p></div>
+        <div class="receipt-identity"><div class="receipt-title-line"><h2>代淘确认单</h2>${miniHomeButton}</div><p>小王混剪 · 购机服务</p></div>
         <div class="receipt-price"><span>代淘服务费</span><strong><small>¥</small>20</strong></div>
       </div>
       <div class="receipt-status">您的代淘需求已填写完成 · 本客户需要代淘服务</div>
@@ -191,7 +192,7 @@ function taotao3() {
 function daipai1() {
   return `<section class="page">
     ${steps(1, ['了解服务','代拍须知','确认单'])}
-    <div class="section-head"><p class="eyebrow">指定机器代拍 · 第一步</p><h1>了解代拍服务</h1><p>适合已经在拍机堂选好指定机器的客户。</p></div>
+    ${serviceHeading('指定机器代拍 · 第一步', '了解代拍服务', '适合已经在拍机堂选好指定机器的客户。')}
     <div class="card fee-card"><small>代拍服务费</small><strong>20元</strong></div>
     <div class="card"><h3>服务范围</h3><ul class="rule-list"><li>客户自行在拍机堂选择机器，小王只负责协助购买指定机器，不负责寻找或推荐其他机器。</li><li>仅支持拍机堂平台，不支持其他竞拍或二手交易平台。</li><li>无需在网站上传机器图片，后续直接通过私信发送给小王。</li></ul></div>
     <div class="actions">${backButton('home','返回首页')}<button class="primary-btn" type="button" data-route="daipai-2">我已了解，继续</button></div>
@@ -200,12 +201,12 @@ function daipai1() {
 
 function daipai2() {
   const d = state.daipai;
-  return `<section class="page">
+  return `<section class="page compact-service-page daipai-notice-page">
     ${steps(2, ['了解服务','代拍须知','确认单'])}
-    <div class="section-head"><p class="eyebrow">指定机器代拍 · 第二步</p><h1>代拍须知</h1><p>请在继续前完整阅读。</p></div>
-    <div class="card"><ol class="rule-list"><li>二手手机库存实时变化，之前看中的机器可能已经售出、下架或价格变化。</li><li>拍机堂属于B2B二手数码交易平台，交易过程中可能产生相关费用。小王会在下单前提供最终成交报价，客户确认后再付款。</li><li>暗拍交易存在时间和竞价限制，不能保证一定成功拍下。</li></ol></div>
-    <div class="card"><h3>暗拍参考场次</h3><div class="summary-table"><div class="summary-row"><span>第一场</span><strong>08:00—11:00</strong></div><div class="summary-row"><span>第二场</span><strong>12:00—18:00</strong></div><div class="summary-row"><span>第三场</span><strong>19:00—次日02:00</strong></div></div><p class="hint">非交易时段可能无法查询或操作，实际以平台情况为准。以上场次上线前需要核对最新规则。</p></div>
-    <div class="card"><h3>拍单、退款与售后</h3><ul class="rule-list"><li>拍单前核对商品编号、型号、成色、已知问题及最终成交价格，客户确认后全款支付。</li><li><strong>方案一：</strong>指定机器已售出、下架或无法成功拍下，可全额退款，包括已支付的20元代拍服务费和手机货款。</li><li><strong>方案二：</strong>也可保留款项，重新选择机器继续代拍，无需再次支付20元服务费；更换机器后的价格差异需重新确认和结算。</li><li>成功购买后如有商品描述不符或功能异常，可联系小王协助处理售后。已成交订单的取消、退款按实际订单情况、双方约定及适用法律处理。</li></ul></div>
+    ${serviceHeading('指定机器代拍 · 第二步', '代拍须知', '请在继续前完整阅读。', 'compact-section-head')}
+    <div class="card compact-rule-card intro-rule-card"><ol class="rule-list"><li>二手手机库存实时变化，之前看中的机器可能已经售出、下架或价格变化。</li><li>拍机堂属于B2B二手数码交易平台，交易过程中可能产生相关费用。小王会在下单前提供最终成交报价，客户确认后再付款。</li><li>暗拍交易存在时间和竞价限制，不能保证一定成功拍下。</li></ol></div>
+    <div class="card compact-schedule-card"><h3>暗拍参考场次</h3><div class="summary-table"><div class="summary-row"><span>第一场</span><strong>08:00—11:00</strong></div><div class="summary-row"><span>第二场</span><strong>12:00—18:00</strong></div><div class="summary-row"><span>第三场</span><strong>19:00—次日02:00</strong></div></div><p class="hint">非交易时段可能无法查询或操作，实际以平台情况为准。以上场次上线前需要核对最新规则。</p></div>
+    <div class="card compact-rule-card"><h3>拍单、退款与售后</h3><ul class="rule-list"><li>拍单前核对商品编号、型号、成色、已知问题及最终成交价格，客户确认后全款支付。</li><li><strong>方案一：</strong>指定机器已售出、下架或无法成功拍下，可全额退款，包括已支付的20元代拍服务费和手机货款。</li><li><strong>方案二：</strong>也可保留款项，重新选择机器继续代拍，无需再次支付20元服务费；更换机器后的价格差异需重新确认和结算。</li><li>成功购买后如有商品描述不符或功能异常，可联系小王协助处理售后。已成交订单的取消、退款按实际订单情况、双方约定及适用法律处理。</li></ul></div>
     ${inspectionSelector(d.inspection, 'daipai')}
     <div class="card shipping-form-card">
       <h3>收货信息</h3>
@@ -230,23 +231,22 @@ function daipai3() {
   const shipping = d.inspection === inspectionWith
     ? '成功拍下后先寄小王处进行基础验机，再顺丰到付转寄客户；时效以实际物流为准'
     : '成功拍下后直接寄送客户；建议录制连续、未经剪辑的开箱验机视频';
-  return `<section class="page">
-    ${steps(3, ['了解服务','代拍须知','确认单'])}
+  return `<section class="page receipt-page">
     <div class="card receipt receipt-daipai">
       <div class="receipt-hero">
         <div class="receipt-service-icon" aria-hidden="true"><span class="receipt-phone-outline"><span></span></span><b class="receipt-icon-mark">?</b></div>
-        <div class="receipt-identity"><h2>代拍确认单</h2><p>小王混剪 · 代拍服务</p></div>
+        <div class="receipt-identity"><div class="receipt-title-line"><h2>代拍确认单</h2>${miniHomeButton}</div><p>小王混剪 · 代拍服务</p></div>
         <div class="receipt-price"><span>代拍服务费</span><strong><small>¥</small>20</strong></div>
       </div>
       <div class="receipt-status">代拍申请已填写完成 · 本客户需要代拍服务</div>
-      <div class="summary-table"><div class="summary-row"><span>验机方式</span><strong class="summary-value inspection-result ${inspectionClass}">${esc(d.inspection)}</strong></div><div class="summary-row"><span>付款及发货</span><strong class="summary-value summary-value-long">核对指定机器与最终成交报价，客户确认后全款支付；${shipping}</strong></div><div class="summary-row"><span>无法成交</span><strong class="summary-value summary-value-long">可全额退款（含服务费和货款），或保留款项重新选机继续代拍</strong></div></div>
-      <section class="receipt-shipping" aria-labelledby="receiptShippingTitle"><h3 id="receiptShippingTitle">收货信息</h3><div class="summary-table"><div class="summary-row"><span>手机型号</span><strong class="summary-value shipping-value">${esc(d.phoneModel)}</strong></div><div class="summary-row"><span>收货姓名</span><strong class="summary-value shipping-value">${esc(d.recipientName)}</strong></div><div class="summary-row"><span>联系电话</span><strong class="summary-value shipping-value">${esc(d.phone)}</strong></div><div class="summary-row"><span>所在地区</span><strong class="summary-value shipping-value">${esc([d.province, d.city, d.district].filter(Boolean).join(' '))}</strong></div><div class="summary-row"><span>详细地址</span><strong class="summary-value shipping-value shipping-address">${esc(d.address)}</strong></div></div></section>
-      <div class="notice warning" style="margin-bottom:0"><strong>当前仅为申请确认：</strong>机器尚未拍下，也尚未实际成交。</div>
-      ${fraudMini}
-      <div class="receipt-note">机器截图尽量包含商品编号、型号和页面价格。</div>
+      <section class="receipt-block receipt-purchase" aria-labelledby="receiptPurchaseTitle"><h3 id="receiptPurchaseTitle">购机信息</h3><div class="summary-table"><div class="summary-row"><span>手机型号</span><strong class="summary-value">${esc(d.phoneModel)}</strong></div><div class="summary-row"><span>验机方式</span><strong class="summary-value inspection-result ${inspectionClass}">${esc(d.inspection)}</strong></div></div></section>
+      <section class="receipt-shipping" aria-labelledby="receiptShippingTitle"><h3 id="receiptShippingTitle">收货信息</h3><div class="summary-table"><div class="summary-row"><span>收货姓名</span><strong class="summary-value shipping-value">${esc(d.recipientName)}</strong></div><div class="summary-row"><span>联系电话</span><strong class="summary-value shipping-value">${esc(d.phone)}</strong></div><div class="summary-row"><span>所在地区</span><strong class="summary-value shipping-value">${esc([d.province, d.city, d.district].filter(Boolean).join(' '))}</strong></div><div class="summary-row"><span>详细地址</span><strong class="summary-value shipping-value shipping-address">${esc(d.address)}</strong></div></div></section>
+      <div class="receipt-note"><strong>付款说明：</strong>拍单前核对指定机器与最终成交报价，客户确认后全款支付。</div>
       <p class="screenshot-callout">请将本页面截图，以及您在拍机堂选中的机器截图，一起私信发送给小王。</p>
-      ${shippingTrackingNotice}
       ${daipaiPaymentSection}
+      <div class="receipt-note"><strong>发货方式：</strong>${shipping}</div>
+      ${shippingTrackingNotice}
+      <section class="receipt-block receipt-other" aria-labelledby="receiptOtherTitle"><h3 id="receiptOtherTitle">无法成交及其他须知</h3><div class="summary-table"><div class="summary-row"><span>无法成交</span><strong class="summary-value summary-value-long">可全额退款（含服务费和货款），或保留款项重新选机继续代拍</strong></div></div><div class="notice warning"><strong>当前仅为申请确认：</strong>机器尚未拍下，也尚未实际成交。</div><div class="receipt-note">机器截图尽量包含商品编号、型号和页面价格。</div>${fraudMini}</section>
     </div>
     <div class="actions">${backButton('daipai-2','返回修改')}<button class="primary-btn" type="button" data-route="home">完成并返回首页</button></div>
   </section>`;
@@ -254,7 +254,7 @@ function daipai3() {
 
 function quickPay() {
   return `<section class="page quick-pay-page">
-    <div class="section-head"><p class="eyebrow">便捷支付 · 请先确认金额</p><h1>快捷付款</h1></div>
+    ${serviceHeading('便捷支付 · 请先确认金额', '快捷付款', '')}
     <div class="notice quick-pay-notice">请先与小王确认付款金额，再选择对应的支付方式。</div>
     <div class="quick-pay-grid" aria-label="收款二维码">
       <article class="card quick-pay-card quick-pay-wechat">
