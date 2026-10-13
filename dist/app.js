@@ -2,7 +2,7 @@ const app = document.querySelector('#app');
 const STORAGE_KEY = 'xw-phone-service-v1';
 const initialState = {
   taotao: { step: 1, preset: '', budget: '', model: '', focus: '综合体验', condition: '可接受轻微使用痕迹', other: '', inspection: '', agreed: false },
-  daipai: { step: 1, inspection: '', agreed: false }
+  daipai: { step: 1, inspection: '', agreed: false, phoneModel: '', recipientName: '', phone: '', province: '', city: '', district: '', address: '' }
 };
 
 let state = loadState();
@@ -26,6 +26,7 @@ function topAfterRender() { requestAnimationFrame(() => { window.scrollTo({ top:
 const backButton = (route, label = '返回上一步') => `<button class="secondary-btn" type="button" data-route="${route}">${label}</button>`;
 const steps = (active, labels) => `<div class="stepper" aria-label="服务步骤">${labels.map((x,i)=>`<div class="step ${i + 1 <= active ? 'active' : ''}">${i + 1}. ${x}</div>`).join('')}</div>`;
 const fraudMini = `<div class="fraud-mini"><strong>防骗提醒：</strong>请只通过“小王混剪”官方主页主动联系本人。警惕陌生账号主动私信、冒充客服或催促转账；付款前请核实身份与收款信息。</div>`;
+const shippingTrackingNotice = `<div class="receipt-note shipping-tracking"><strong>发货与物流查询：</strong>机器购买成功并确认订单后，原则上将在48小时内安排发货；如遇平台、节假日或物流异常，以小王实际通知为准。发货后，小王会第一时间将快递单号发送给您。大多数订单使用京东快递，部分订单使用顺丰快递，具体以实际发货为准。京东快递单号通常以 JDVB 或 JDX 开头。可在“京东快递”官方 App 或小程序中查询；顺丰快递单号通常以 SF 开头，可在“顺丰速运”官方 App 或小程序中查询。复制并粘贴完整单号即可；如查询时需要核验收件手机号，请以小王发送单号时一并告知的信息为准。</div>`;
 const paymentSection = `<div class="payment-section">
   <p class="payment-instruction"><strong>请先截图发送给小王，等待小王确认你的预算和购机需求可以代淘。确认可以代淘后，再扫描下方二维码支付20元代淘服务费。</strong></p>
   <div class="payment-grid" aria-label="收款二维码">
@@ -33,13 +34,30 @@ const paymentSection = `<div class="payment-section">
     <div class="payment-card"><button class="zoomable" type="button" data-image="./assets/payment-alipay.png" data-alt="支付宝收款二维码"><img src="./assets/payment-alipay.png" alt="小王混剪支付宝收款二维码" width="1708" height="2560" decoding="async"></button><p>支付宝 · 点击查看大图</p></div>
   </div>
 </div>`;
+const daipaiPaymentSection = paymentSection.replace(
+  "请先截图发送给小王，等待小王确认你的预算和购机需求可以代淘。确认可以代淘后，再扫描下方二维码支付20元代淘服务费。",
+  "请先将代拍确认单截图发送给小王，等待小王确认手机及代拍需求。确认可以代拍后，再扫描下方二维码支付20元代拍服务费。"
+);
 const inspectionWith = '需要小王帮忙验机';
 const inspectionWithout = '不需要小王帮忙验机';
+const daipaiShippingFields = ['phoneModel', 'recipientName', 'phone', 'province', 'city', 'district', 'address'];
+
+function hasCompleteDaipaiShipping() {
+  return daipaiShippingFields.every(field => String(state.daipai[field] || '').trim());
+}
+
+function canGenerateDaipai() {
+  return Boolean(state.daipai.inspection && state.daipai.agreed && hasCompleteDaipaiShipping());
+}
 
 function inspectionSelector(selected, service) {
   const isDaipai = service === 'daipai';
   const radioName = `${service}Inspection`;
   const revealId = `${service}VideoRules`;
+  const freeInspectionBadge = '<span class="inspection-free-badge">免费验机 · 顺丰运费自付</span>';
+  const freeInspectionNote = isDaipai
+    ? '选择小王帮忙验机不收取额外验机费，仅需自行承担顺丰快递运费，运费直接支付给顺丰。20元代拍服务费仍按原规则收取。'
+    : '如需小王帮忙验机，不收取额外验机服务费。顺丰快递运费由客户自行承担，并直接支付给顺丰，小王不代收运费。20元代淘服务费仍按原规则收取，免费仅指不额外收取验机服务费。';
   const withCopy = isDaipai
     ? '机器成功拍下后，先寄送到小王处。小王进行基础外观及功能检查，不拆机，检查完成后再转寄给客户。顺丰运费到付，非偏远地区预计20元以内，实际以快递报价为准。预计4～5天送达，实际以物流情况为准。基础验机不能保证发现所有隐藏问题。'
     : '机器先寄给小王，进行外观及基本功能检查，不拆机。检查不代表能够发现所有隐藏问题。随后转寄客户，顺丰到付，非偏远地区运费通常预计20元以内，实际以快递报价为准。预计4至5天送达，仅供参考。';
@@ -50,8 +68,8 @@ function inspectionSelector(selected, service) {
     ? '如果多个客户的机器合并发货，即使选择了不需要验机，也可能需要先寄到小王处再转寄。由此产生的额外转寄运费由小王承担，并通知客户。'
     : '若多个客户的机器被合并发货，可能需要先寄到小王处再转寄。由此产生的额外转寄运费由小王承担，并提前通知客户。';
 
-  return `<div class="card"><h3>请选择验机方式</h3><div class="option-list" style="margin-top:14px">
-      <label class="choice-label"><input type="radio" name="${radioName}" value="${inspectionWith}" ${selected===inspectionWith?'checked':''}><span class="choice-ui"><span class="choice-letter">A</span><span class="option-copy"><strong>${inspectionWith}</strong><span>${withCopy}</span></span></span></label>
+  return `<div class="card"><div class="inspection-heading"><h3>请选择验机方式</h3>${isDaipai?'':freeInspectionBadge}</div>${isDaipai?'':`<p class="inspection-free-note inspection-heading-note">${freeInspectionNote}</p>`}<div class="option-list" style="margin-top:14px">
+      <label class="choice-label"><input type="radio" name="${radioName}" value="${inspectionWith}" ${selected===inspectionWith?'checked':''}><span class="choice-ui"><span class="choice-letter">A</span><span class="option-copy"><strong class="inspection-option-title"><span>${inspectionWith}</span>${isDaipai?freeInspectionBadge:''}</strong>${isDaipai?`<span class="inspection-free-note">${freeInspectionNote}</span>`:''}<span>${withCopy}</span></span></span></label>
       <label class="choice-label"><input type="radio" name="${radioName}" value="${inspectionWithout}" ${selected===inspectionWithout?'checked':''}><span class="choice-ui"><span class="choice-letter">B</span><span class="option-copy"><strong>${inspectionWithout}</strong><span>${withoutCopy}</span></span></span></label>
     </div>
     <div class="form-reveal ${selected===inspectionWithout?'open':''}" id="${revealId}" aria-hidden="${selected===inspectionWithout?'false':'true'}"><div><div class="media-block"><button class="zoomable" type="button" data-image="./assets/video-evidence-rules.jpg" data-alt="视频举证规则"><img src="./assets/video-evidence-rules.jpg" alt="视频举证规则原图"></button><p class="media-caption">视频举证规则 · 点击图片查看大图</p></div></div></div>
@@ -59,7 +77,7 @@ function inspectionSelector(selected, service) {
     <div class="notice warning"><strong>特殊情况：</strong>${specialCopy}</div>`;
 }
 
-function bindInspectionSelector({ service, model, agreementId, confirmId, errorId }) {
+function bindInspectionSelector({ service, model, agreementId, confirmId, errorId, canConfirm }) {
   document.querySelectorAll(`input[name="${service}Inspection"]`).forEach(input => input.addEventListener('change', e => {
     model.inspection = e.target.value;
     saveState();
@@ -71,7 +89,7 @@ function bindInspectionSelector({ service, model, agreementId, confirmId, errorI
 
     const agreement = document.querySelector(`#${agreementId}`);
     const confirmButton = document.querySelector(`#${confirmId}`);
-    if (confirmButton) confirmButton.disabled = !model.inspection || !agreement?.checked;
+    if (confirmButton) confirmButton.disabled = canConfirm ? !canConfirm() : !model.inspection || !agreement?.checked;
     const error = document.querySelector(`#${errorId}`);
     if (error) error.textContent = '';
   }));
@@ -84,11 +102,13 @@ function home() {
       <p class="eyebrow">欢迎来到小王混剪</p>
       <h1>二手手机<br>代淘服务中心</h1>
       <p class="lead">请选择您需要的服务。</p>
+      <p class="root-notice">温馨提示：本店暂不提供 ROOT 刷机服务，如有相关需求，建议咨询其他代淘主播。</p>
     </div>
     <div class="service-grid">
       <button class="service-card" type="button" data-route="taotao-1"><span class="icon">⌕</span><strong>我要找手机</strong><span>告诉我预算和需求，由小王协助寻找</span></button>
       <button class="service-card" type="button" data-route="daipai-1"><span class="icon">✓</span><strong>我已选好手机，需要代拍</strong><span>已在拍机堂选好指定机器</span></button>
       <button class="service-card" type="button" data-route="about"><span class="icon">i</span><strong>我想先了解一下</strong><span>查看服务、资质、流程与防骗指南</span></button>
+      <button class="service-card payment-service-card" type="button" data-route="quick-pay"><span class="icon payment-icon">¥</span><strong>快捷付款</strong><span>微信 / 支付宝扫码支付</span></button>
     </div>
   </section>`;
 }
@@ -143,16 +163,24 @@ function taotao2() {
 
 function taotao3() {
   const t = state.taotao;
-  const demand = t.preset === presets[3] ? `预算 ${esc(t.budget)} 元${t.model?`，型号：${esc(t.model)}`:''}` : esc(t.preset);
-  const details = t.preset === presets[3] ? `<div class="summary-row"><span>侧重方面</span><strong>${esc(t.focus)}</strong></div><div class="summary-row"><span>外观成色</span><strong>${esc(t.condition)}</strong></div>${t.other?`<div class="summary-row"><span>其他要求</span><strong>${esc(t.other)}</strong></div>`:''}` : '';
+  const isCustom = t.preset === presets[3];
+  const demandRows = isCustom
+    ? `<div class="summary-row"><span>购机需求</span><strong class="summary-value">自定义需求</strong></div><div class="summary-row"><span>购机预算</span><strong class="summary-value">${esc(t.budget)}元</strong></div><div class="summary-row"><span>手机型号</span><strong class="summary-value">${t.model ? esc(t.model) : '未指定'}</strong></div><div class="summary-row"><span>侧重方面</span><strong class="summary-value">${esc(t.focus)}</strong></div><div class="summary-row"><span>外观成色</span><strong class="summary-value">${esc(t.condition)}</strong></div>${t.other ? `<div class="summary-row"><span>其他要求</span><strong class="summary-value">${esc(t.other)}</strong></div>` : ''}`
+    : `<div class="summary-row"><span>购机需求</span><strong class="summary-value">${esc(t.preset)}</strong></div>`;
+  const inspectionClass = t.inspection === inspectionWith ? 'inspection-with' : 'inspection-without';
   return `<section class="page">
     ${steps(3, ['购机需求','服务确认','确认单'])}
-    <div class="card receipt" id="receipt">
-      <div class="receipt-head"><p class="receipt-kicker">小王混剪 · 服务确认单</p><h2>您的代淘需求已填写完成</h2></div>
-      <div class="receipt-fee">本客户需要代淘服务<strong>20元代淘服务费</strong></div>
-      <div class="summary-table"><div class="summary-row"><span>购机需求</span><strong>${demand}</strong></div>${details}<div class="summary-row"><span>验机方式</span><strong>${esc(t.inspection)}</strong></div></div>
+    <div class="card receipt receipt-taotao" id="receipt">
+      <div class="receipt-hero">
+        <div class="receipt-service-icon" aria-hidden="true"><span class="receipt-phone-outline"><span></span></span><b class="receipt-icon-mark">!</b></div>
+        <div class="receipt-identity"><h2>代淘确认单</h2><p>小王混剪 · 购机服务</p></div>
+        <div class="receipt-price"><span>代淘服务费</span><strong><small>¥</small>20</strong></div>
+      </div>
+      <div class="receipt-status">您的代淘需求已填写完成 · 本客户需要代淘服务</div>
+      <div class="summary-table">${demandRows}<div class="summary-row"><span>验机方式</span><strong class="summary-value inspection-result ${inspectionClass}">${esc(t.inspection)}</strong></div></div>
       <div class="receipt-note"><strong>付款及发货规则：</strong>先支付20元服务费开始找机；确认具体机器后再支付全部手机货款。机器不支持货到付款或分期。发货时效仅供参考，实际以物流为准。</div>
       <p class="screenshot-callout">请将本页面截图发送给小王</p>
+      ${shippingTrackingNotice}
       ${fraudMini}
       ${paymentSection}
     </div>
@@ -179,30 +207,69 @@ function daipai2() {
     <div class="card"><h3>暗拍参考场次</h3><div class="summary-table"><div class="summary-row"><span>第一场</span><strong>08:00—11:00</strong></div><div class="summary-row"><span>第二场</span><strong>12:00—18:00</strong></div><div class="summary-row"><span>第三场</span><strong>19:00—次日02:00</strong></div></div><p class="hint">非交易时段可能无法查询或操作，实际以平台情况为准。以上场次上线前需要核对最新规则。</p></div>
     <div class="card"><h3>拍单、退款与售后</h3><ul class="rule-list"><li>拍单前核对商品编号、型号、成色、已知问题及最终成交价格，客户确认后全款支付。</li><li><strong>方案一：</strong>指定机器已售出、下架或无法成功拍下，可全额退款，包括已支付的20元代拍服务费和手机货款。</li><li><strong>方案二：</strong>也可保留款项，重新选择机器继续代拍，无需再次支付20元服务费；更换机器后的价格差异需重新确认和结算。</li><li>成功购买后如有商品描述不符或功能异常，可联系小王协助处理售后。已成交订单的取消、退款按实际订单情况、双方约定及适用法律处理。</li></ul></div>
     ${inspectionSelector(d.inspection, 'daipai')}
+    <div class="card shipping-form-card">
+      <h3>收货信息</h3>
+      <p class="hint shipping-privacy-hint">以下信息仅保存在当前浏览器中，用于生成确认单，不会由本网站自动发送。</p>
+      <div class="form-grid shipping-form-grid">
+        <div class="field"><label for="phoneModel">购买手机型号 <span class="required">*</span></label><input id="phoneModel" type="text" value="${esc(d.phoneModel)}" maxlength="50" autocomplete="off" placeholder="请填写购买的手机型号" required></div>
+        <div class="field"><label for="recipientName">收货姓名 <span class="required">*</span></label><input id="recipientName" type="text" value="${esc(d.recipientName)}" maxlength="30" autocomplete="name" placeholder="请填写收货人姓名" required></div>
+        <div class="field"><label for="phone">联系电话 <span class="required">*</span></label><input id="phone" type="tel" value="${esc(d.phone)}" maxlength="30" inputmode="tel" autocomplete="tel" placeholder="请填写收货联系电话" required></div>
+        <fieldset class="field region-fieldset"><legend>所在地区 <span class="required">*</span></legend><div class="region-grid"><input id="province" type="text" value="${esc(d.province)}" maxlength="30" autocomplete="address-level1" placeholder="省" aria-label="省" required><input id="city" type="text" value="${esc(d.city)}" maxlength="30" autocomplete="address-level2" placeholder="市" aria-label="市" required><input id="district" type="text" value="${esc(d.district)}" maxlength="30" autocomplete="address-level3" placeholder="区县" aria-label="区县" required></div></fieldset>
+        <div class="field"><label for="address">详细收货地址 <span class="required">*</span></label><textarea id="address" maxlength="160" autocomplete="street-address" placeholder="请填写详细收货地址" required>${esc(d.address)}</textarea><p class="hint">请填写街道、小区、楼栋、单元及门牌号，确保快递能够准确送达。</p></div>
+      </div>
+    </div>
     <label class="agreement"><input type="checkbox" id="daipaiAgree" ${d.agreed?'checked':''}><span>我已阅读并了解代拍服务规则</span></label>
     <p class="error-text" id="daipaiError" role="alert"></p>
-    <div class="actions">${backButton('daipai-1')}<button class="primary-btn" id="daipaiConfirm" type="button" ${(!d.inspection||!d.agreed)?'disabled':''}>生成确认单</button></div>
+    <div class="actions">${backButton('daipai-1')}<button class="primary-btn" id="daipaiConfirm" type="button" ${canGenerateDaipai()?'':'disabled'}>生成确认单</button></div>
   </section>`;
 }
 
 function daipai3() {
   const d = state.daipai;
+  const inspectionClass = d.inspection === inspectionWith ? 'inspection-with' : 'inspection-without';
   const shipping = d.inspection === inspectionWith
     ? '成功拍下后先寄小王处进行基础验机，再顺丰到付转寄客户；时效以实际物流为准'
     : '成功拍下后直接寄送客户；建议录制连续、未经剪辑的开箱验机视频';
   return `<section class="page">
     ${steps(3, ['了解服务','代拍须知','确认单'])}
-    <div class="card receipt">
-      <div class="receipt-head"><p class="receipt-kicker">小王混剪 · 服务确认单</p><h2>代拍申请已填写完成</h2></div>
-      <div class="receipt-fee">本客户需要代拍服务<strong>20元代拍服务费</strong></div>
-      <div class="summary-table"><div class="summary-row"><span>验机方式</span><strong>${esc(d.inspection)}</strong></div><div class="summary-row"><span>付款及发货</span><strong>核对指定机器与最终成交报价，客户确认后全款支付；${shipping}</strong></div><div class="summary-row"><span>无法成交</span><strong>可全额退款（含服务费和货款），或保留款项重新选机继续代拍</strong></div></div>
+    <div class="card receipt receipt-daipai">
+      <div class="receipt-hero">
+        <div class="receipt-service-icon" aria-hidden="true"><span class="receipt-phone-outline"><span></span></span><b class="receipt-icon-mark">?</b></div>
+        <div class="receipt-identity"><h2>代拍确认单</h2><p>小王混剪 · 代拍服务</p></div>
+        <div class="receipt-price"><span>代拍服务费</span><strong><small>¥</small>20</strong></div>
+      </div>
+      <div class="receipt-status">代拍申请已填写完成 · 本客户需要代拍服务</div>
+      <div class="summary-table"><div class="summary-row"><span>验机方式</span><strong class="summary-value inspection-result ${inspectionClass}">${esc(d.inspection)}</strong></div><div class="summary-row"><span>付款及发货</span><strong class="summary-value summary-value-long">核对指定机器与最终成交报价，客户确认后全款支付；${shipping}</strong></div><div class="summary-row"><span>无法成交</span><strong class="summary-value summary-value-long">可全额退款（含服务费和货款），或保留款项重新选机继续代拍</strong></div></div>
+      <section class="receipt-shipping" aria-labelledby="receiptShippingTitle"><h3 id="receiptShippingTitle">收货信息</h3><div class="summary-table"><div class="summary-row"><span>手机型号</span><strong class="summary-value shipping-value">${esc(d.phoneModel)}</strong></div><div class="summary-row"><span>收货姓名</span><strong class="summary-value shipping-value">${esc(d.recipientName)}</strong></div><div class="summary-row"><span>联系电话</span><strong class="summary-value shipping-value">${esc(d.phone)}</strong></div><div class="summary-row"><span>所在地区</span><strong class="summary-value shipping-value">${esc([d.province, d.city, d.district].filter(Boolean).join(' '))}</strong></div><div class="summary-row"><span>详细地址</span><strong class="summary-value shipping-value shipping-address">${esc(d.address)}</strong></div></div></section>
       <div class="notice warning" style="margin-bottom:0"><strong>当前仅为申请确认：</strong>机器尚未拍下，也尚未实际成交。</div>
       ${fraudMini}
       <div class="receipt-note">机器截图尽量包含商品编号、型号和页面价格。</div>
       <p class="screenshot-callout">请将本页面截图，以及您在拍机堂选中的机器截图，一起私信发送给小王。</p>
-      ${paymentSection}
+      ${shippingTrackingNotice}
+      ${daipaiPaymentSection}
     </div>
     <div class="actions">${backButton('daipai-2','返回修改')}<button class="primary-btn" type="button" data-route="home">完成并返回首页</button></div>
+  </section>`;
+}
+
+function quickPay() {
+  return `<section class="page quick-pay-page">
+    <div class="section-head"><p class="eyebrow">便捷支付 · 请先确认金额</p><h1>快捷付款</h1></div>
+    <div class="notice quick-pay-notice">请先与小王确认付款金额，再选择对应的支付方式。</div>
+    <div class="quick-pay-grid" aria-label="收款二维码">
+      <article class="card quick-pay-card quick-pay-wechat">
+        <div class="quick-pay-card-head"><span class="quick-pay-brand">微信</span><h2>微信收款码</h2></div>
+        <img class="quick-pay-image" src="./assets/payment-wechat.jpg" alt="小王混剪微信收款码" width="800" height="1088" loading="eager" decoding="async">
+        <p class="quick-pay-save">长按二维码可保存图片</p>
+      </article>
+      <article class="card quick-pay-card quick-pay-alipay">
+        <div class="quick-pay-card-head"><span class="quick-pay-brand">支付宝</span><h2>支付宝收款码</h2></div>
+        <img class="quick-pay-image" src="./assets/payment-alipay.png" alt="小王混剪支付宝收款码" width="1708" height="2560" loading="eager" decoding="async">
+        <p class="quick-pay-save">长按二维码可保存图片</p>
+      </article>
+    </div>
+    <div class="notice warning quick-pay-reminder"><strong>付款提示：</strong>付款前请确认金额，付款完成后请截图保留支付凭证，并发送给小王核对。</div>
+    <div class="actions"><button class="secondary-btn" type="button" data-route="home">返回首页</button></div>
   </section>`;
 }
 
@@ -221,12 +288,12 @@ function about() {
   </section>`;
 }
 
-const routes = { home, 'taotao-1': taotao1, 'taotao-2': taotao2, 'taotao-3': taotao3, 'daipai-1': daipai1, 'daipai-2': daipai2, 'daipai-3': daipai3, about };
+const routes = { home, 'taotao-1': taotao1, 'taotao-2': taotao2, 'taotao-3': taotao3, 'daipai-1': daipai1, 'daipai-2': daipai2, 'daipai-3': daipai3, 'quick-pay': quickPay, about };
 
 function render() {
   const route = routeName();
   if (!routes[route]) return go('home');
-  if (route === 'daipai-3' && (!state.daipai.inspection || !state.daipai.agreed)) return go('daipai-2');
+  if (route === 'daipai-3' && !canGenerateDaipai()) return go('daipai-2');
   app.innerHTML = routes[route]();
   bindPage(route);
   topAfterRender();
@@ -267,10 +334,23 @@ function bindPage(route) {
     });
   }
   if (route === 'daipai-2') {
-    bindInspectionSelector({ service: 'daipai', model: state.daipai, agreementId: 'daipaiAgree', confirmId: 'daipaiConfirm', errorId: 'daipaiError' });
-    document.querySelector('#daipaiAgree')?.addEventListener('change', e => { state.daipai.agreed = e.target.checked; saveState(); document.querySelector('#daipaiConfirm').disabled = !state.daipai.inspection || !state.daipai.agreed; });
+    const updateDaipaiConfirm = () => { document.querySelector('#daipaiConfirm').disabled = !canGenerateDaipai(); };
+    bindInspectionSelector({ service: 'daipai', model: state.daipai, agreementId: 'daipaiAgree', confirmId: 'daipaiConfirm', errorId: 'daipaiError', canConfirm: canGenerateDaipai });
+    daipaiShippingFields.forEach(id => document.querySelector(`#${id}`)?.addEventListener('input', e => {
+      state.daipai[id] = e.target.value;
+      saveState();
+      updateDaipaiConfirm();
+      document.querySelector('#daipaiError').textContent = '';
+    }));
+    document.querySelector('#daipaiAgree')?.addEventListener('change', e => { state.daipai.agreed = e.target.checked; saveState(); updateDaipaiConfirm(); });
     document.querySelector('#daipaiConfirm')?.addEventListener('click', () => {
       if (!state.daipai.inspection || !state.daipai.agreed) { document.querySelector('#daipaiError').textContent = '请选择验机方式，并勾选已阅读服务规则。'; return; }
+      if (!hasCompleteDaipaiShipping()) {
+        document.querySelector('#daipaiError').textContent = '请完整填写全部必填收货信息。';
+        const firstMissing = daipaiShippingFields.find(id => !String(state.daipai[id] || '').trim());
+        document.querySelector(`#${firstMissing}`)?.focus();
+        return;
+      }
       state.daipai.step = 3; saveState(); go('daipai-3');
     });
   }
