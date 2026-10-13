@@ -192,6 +192,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--blue); box-shado
 .receipt-note { margin: 15px 0 0; padding: 13px; border-radius: 13px; color: #475467; background: #f7f8fa; font-size: 12px; line-height: 1.65; }
 .screenshot-callout { margin: 17px 0 0; color: var(--blue-dark); font-weight: 800; text-align: center; }
 .fraud-mini { margin: 12px 0 0; padding: 11px 12px; border: 1px solid #f2ce92; border-radius: 12px; color: #7a4b00; background: #fff8e8; font-size: 11px; line-height: 1.6; }
+.refund-reminder { margin: 10px 0 0; padding: 10px 12px; border: 1px solid rgba(220,38,38,.14); border-radius: 12px; background: #fffafa; text-align: center; }
+.refund-reminder h3 { margin: 0; color: #DC2626; font-size: 17px; font-weight: 850; line-height: 1.4; overflow-wrap: anywhere; }
+.refund-reminder p { margin: 5px 0 0; color: #667085; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .payment-section { margin-top: 16px; padding-top: 16px; border-top: 1px dashed #d5dbe4; }
 .payment-instruction { margin: 0; padding: 14px; border: 1px solid #bcd2f5; border-radius: 14px; color: #173f78; background: #f2f7ff; font-size: 13px; line-height: 1.75; }
 .payment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }

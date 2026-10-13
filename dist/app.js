@@ -28,6 +28,7 @@ const steps = (active, labels) => `<div class="stepper" aria-label="服务步骤
 const miniHomeButton = `<button class="mini-home-btn" type="button" data-route="home" title="返回首页，已填写内容会保留" aria-label="返回首页，已填写内容会保留">首页</button>`;
 const serviceHeading = (eyebrow, title, description, extraClass = '') => `<div class="section-head service-section-head ${extraClass}"><p class="eyebrow">${eyebrow}</p><div class="section-title-row"><h1>${title}</h1>${miniHomeButton}</div>${description ? `<p>${description}</p>` : ''}</div>`;
 const fraudMini = `<div class="fraud-mini"><strong>防骗提醒：</strong>请只通过“小王混剪”官方主页主动联系本人。警惕陌生账号主动私信、冒充客服或催促转账；付款前请核实身份与收款信息。</div>`;
+const refundReminder = `<div class="refund-reminder" role="note"><h3>商品购买后不支持无理由退货退款</h3><p>商品无质量问题且不存在其他依法应当退货退款的情形时，不接受无理由退货退款申请。如存在质量问题，请及时联系小王处理售后。</p></div>`;
 const shippingTrackingNotice = `<div class="receipt-note shipping-tracking"><strong>发货与物流查询：</strong>机器购买成功并确认订单后，原则上将在48小时内安排发货；如遇平台、节假日或物流异常，以小王实际通知为准。发货后，小王会第一时间将快递单号发送给您。大多数订单使用京东快递，部分订单使用顺丰快递，具体以实际发货为准。京东快递单号通常以 JDVB 或 JDX 开头。可在“京东快递”官方 App 或小程序中查询；顺丰快递单号通常以 SF 开头，可在“顺丰速运”官方 App 或小程序中查询。复制并粘贴完整单号即可；如查询时需要核验收件手机号，请以小王发送单号时一并告知的信息为准。</div>`;
 const paymentSection = `<div class="payment-section">
   <p class="payment-instruction"><strong>请先截图发送给小王，等待小王确认你的预算和购机需求可以代淘。确认可以代淘后，再扫描下方二维码支付20元代淘服务费。</strong></p>
@@ -183,6 +184,7 @@ function taotao3() {
       <p class="screenshot-callout">请将本页面截图发送给小王</p>
       ${shippingTrackingNotice}
       ${fraudMini}
+      ${refundReminder}
       ${paymentSection}
     </div>
     <div class="actions">${backButton('taotao-2','返回修改')}<button class="primary-btn" type="button" data-route="home">完成并返回首页</button></div>
@@ -243,6 +245,7 @@ function daipai3() {
       <section class="receipt-shipping" aria-labelledby="receiptShippingTitle"><h3 id="receiptShippingTitle">收货信息</h3><div class="summary-table"><div class="summary-row"><span>收货姓名</span><strong class="summary-value shipping-value">${esc(d.recipientName)}</strong></div><div class="summary-row"><span>联系电话</span><strong class="summary-value shipping-value">${esc(d.phone)}</strong></div><div class="summary-row"><span>所在地区</span><strong class="summary-value shipping-value">${esc([d.province, d.city, d.district].filter(Boolean).join(' '))}</strong></div><div class="summary-row"><span>详细地址</span><strong class="summary-value shipping-value shipping-address">${esc(d.address)}</strong></div></div></section>
       <div class="receipt-note"><strong>付款说明：</strong>拍单前核对指定机器与最终成交报价，客户确认后全款支付。</div>
       <p class="screenshot-callout">请将本页面截图，以及您在拍机堂选中的机器截图，一起私信发送给小王。</p>
+      ${refundReminder}
       ${daipaiPaymentSection}
       <div class="receipt-note"><strong>发货方式：</strong>${shipping}</div>
       ${shippingTrackingNotice}
