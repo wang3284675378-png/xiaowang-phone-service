@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="900" viewBox="0 0 720 900" role="img" aria-labelledby="title desc">
+  <title id="title">金色手机正面测试展示图</title><desc id="desc">用于现货页面布局预览的非真实商品图片</desc>
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff8e8"/><stop offset="1" stop-color="#ead9b1"/></linearGradient><linearGradient id="screen" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#301b4d"/><stop offset=".5" stop-color="#b3527f"/><stop offset="1" stop-color="#f0c779"/></linearGradient></defs>
+  <rect width="720" height="900" rx="48" fill="url(#bg)"/><circle cx="122" cy="165" r="120" fill="#fff" opacity=".34"/><g transform="translate(197 96)"><rect width="326" height="650" rx="48" fill="#b99d62"/><rect x="10" y="10" width="306" height="630" rx="40" fill="#111016"/><rect x="19" y="19" width="288" height="612" rx="33" fill="url(#screen)"/><circle cx="163" cy="42" r="8" fill="#19151f"/></g>
+  <rect x="214" y="784" width="292" height="52" rx="26" fill="#fff" opacity=".9"/><text x="360" y="817" text-anchor="middle" font-family="Arial,'Microsoft YaHei',sans-serif" font-size="22" font-weight="700" fill="#735d2f">测试展示图 · 正面</text>
+</svg>

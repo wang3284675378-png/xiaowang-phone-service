@@ -45,6 +45,99 @@ const inspectionWith = '需要小王帮忙验机';
 const inspectionWithout = '不需要小王帮忙验机';
 const daipaiShippingFields = ['phoneModel', 'recipientName', 'phone', 'province', 'city', 'district', 'address'];
 
+const stockProducts = [
+  {
+    id: 'iphone-13-pro-256',
+    model: 'iPhone 13 Pro 256G',
+    detailModel: 'iPhone 13 Pro',
+    capacity: '256GB',
+    price: 2699,
+    condition: '95新',
+    configuration: '6GB 内存 · 256GB 存储 · 远峰蓝',
+    description: '屏幕显示正常，触控灵敏，摄像头、听筒、扬声器及面容识别等基础功能正常。机身有轻微使用痕迹，具体外观请以实拍图片为准。',
+    status: 'in-stock',
+    order: 1,
+    images: ['./assets/stock-demo-blue-front.svg', './assets/stock-demo-blue-back.svg']
+  },
+  {
+    id: 'xiaomi-13-256',
+    model: '小米 13 12+256G',
+    detailModel: '小米 13',
+    capacity: '12GB + 256GB',
+    price: 2099,
+    condition: '9成新',
+    configuration: '12GB 内存 · 256GB 存储 · 黑色',
+    description: '机身小巧，日常使用流畅。屏幕、相机、充电及声音等基础功能正常，边框有少量正常使用痕迹，详情请查看全部测试展示图。',
+    status: 'in-stock',
+    order: 2,
+    images: ['./assets/stock-demo-black-front.svg', './assets/stock-demo-black-back.svg']
+  },
+  {
+    id: 'oneplus-ace-3-512',
+    model: '一加 Ace 3 16+512G',
+    detailModel: '一加 Ace 3',
+    capacity: '16GB + 512GB',
+    price: 2199,
+    condition: '95新',
+    configuration: '16GB 内存 · 512GB 存储 · 鸣沙金',
+    description: '大容量版本，适合游戏和日常多任务使用。各项基础功能正常，机身整体成色较好，实际情况以商品实拍图及购买前确认信息为准。',
+    status: 'in-stock',
+    order: 3,
+    images: ['./assets/stock-demo-gold-front.svg', './assets/stock-demo-gold-back.svg']
+  },
+  {
+    id: 'iqoo-11-256',
+    model: 'iQOO 11 12+256G',
+    detailModel: 'iQOO 11',
+    capacity: '12GB + 256GB',
+    price: 1899,
+    condition: '9成新',
+    configuration: '12GB 内存 · 256GB 存储 · 传奇版',
+    description: '性能取向机型，屏幕和基础功能正常，后盖及边框可见正常使用痕迹。本商品用于演示已售出状态，暂不可继续购买。',
+    status: 'sold',
+    order: 4,
+    images: ['./assets/stock-demo-white-front.svg', './assets/stock-demo-white-back.svg']
+  }
+];
+
+function orderedStockProducts() {
+  return stockProducts
+    .filter(product => product.status !== 'hidden')
+    .sort((a, b) => Number(a.status === 'sold') - Number(b.status === 'sold') || a.order - b.order);
+}
+
+function stockProductId() {
+  const query = location.hash.split('?')[1] || '';
+  return new URLSearchParams(query).get('item') || '';
+}
+
+function stockCard(product) {
+  const sold = product.status === 'sold';
+  return `<button class="stock-card ${sold ? 'is-sold' : ''}" type="button" data-route="stock-detail?item=${encodeURIComponent(product.id)}" aria-label="查看${esc(product.model)}详情${sold ? '，已售出' : ''}">
+    <span class="stock-card-copy"><strong>${esc(product.model)}</strong><b>¥${product.price}</b></span>
+    <span class="stock-card-image"><img src="${product.images[0]}" alt="${esc(product.model)}测试展示主图" width="720" height="900" loading="lazy" decoding="async">${sold ? '<span class="sold-badge">已售出</span>' : ''}</span>
+  </button>`;
+}
+
+let stockFlowScrollY = 0;
+
+function lockStockDetailScroll() {
+  if (document.body.classList.contains('purchase-flow-open')) return;
+  stockFlowScrollY = window.scrollY;
+  document.body.style.top = `-${stockFlowScrollY}px`;
+  document.body.classList.add('purchase-flow-open');
+}
+
+function unlockStockDetailScroll() {
+  if (!document.body.classList.contains('purchase-flow-open')) return;
+  const previousScrollBehavior = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = 'auto';
+  document.body.classList.remove('purchase-flow-open');
+  document.body.style.top = '';
+  window.scrollTo(0, stockFlowScrollY);
+  requestAnimationFrame(() => { document.documentElement.style.scrollBehavior = previousScrollBehavior; });
+}
+
 function hasCompleteDaipaiShipping() {
   return daipaiShippingFields.every(field => String(state.daipai[field] || '').trim());
 }
@@ -99,6 +192,7 @@ function bindInspectionSelector({ service, model, agreementId, confirmId, errorI
 }
 
 function home() {
+  const products = orderedStockProducts();
   return `<section class="page">
     <div class="hero">
       <div class="hero-badge">服务流程公开 · 先确认再付款</div>
@@ -113,6 +207,73 @@ function home() {
       <button class="service-card" type="button" data-route="about"><span class="icon">i</span><strong>我想先了解一下</strong><span>查看服务、资质、流程与防骗指南</span></button>
       <button class="service-card payment-service-card" type="button" data-route="quick-pay"><span class="icon payment-icon">¥</span><strong>快捷付款</strong><span>微信 / 支付宝扫码支付</span></button>
     </div>
+    <section class="stock-home" aria-labelledby="stockHomeTitle">
+      <div class="stock-section-head">
+        <div><p class="eyebrow">功能测试预览</p><h2 id="stockHomeTitle">现货手机</h2><p class="stock-testing-note">该内容正在测试，敬请期待后续开放。</p></div>
+        <span>${products.filter(product => product.status === 'in-stock').length} 台有货</span>
+      </div>
+      ${products.length ? `<div class="stock-grid">${products.map(stockCard).join('')}</div>` : '<div class="stock-empty"><strong>暂无现货</strong><p>欢迎咨询代淘服务。</p></div>'}
+      <p class="stock-demo-note">当前为前台效果测试，商品与图片均为虚拟演示内容，请勿据此付款。</p>
+    </section>
+  </section>`;
+}
+
+function stockDetail() {
+  const product = stockProducts.find(item => item.id === stockProductId());
+  if (!product || product.status === 'hidden') return `<section class="page stock-detail-page">${serviceHeading('现货手机', '商品不存在', '该商品可能已下架或链接有误。')}<div class="actions">${backButton('home', '返回首页')}</div></section>`;
+
+  const sold = product.status === 'sold';
+  const galleryImages = Array.from({ length: 9 }, (_, index) => product.images[index % product.images.length]);
+  return `<section class="page stock-detail-page">
+    <div class="stock-detail-topbar"><button class="mini-home-btn" type="button" data-route="home">← 返回首页</button><span class="stock-demo-pill">测试商品</span></div>
+    <div class="stock-detail-hero">
+      <div class="stock-detail-title"><h1>${esc(product.detailModel || product.model)}</h1><span class="stock-detail-capacity">${esc(product.capacity || product.configuration)}</span><div class="stock-detail-price">¥${product.price}</div></div>
+      <span class="stock-status ${sold ? 'sold' : 'available'}">${sold ? '已售出' : '有货'}</span>
+    </div>
+    <section class="stock-gallery" aria-label="9张手机实拍图片"><div class="stock-gallery-list">${galleryImages.map((image, index) => `<button class="zoomable stock-gallery-image" type="button" data-image="${image}" data-alt="${esc(product.model)}测试展示图${index + 1}" aria-label="查看第${index + 1}张实拍图片"><img src="${image}" alt="${esc(product.model)}测试展示图${index + 1}" width="720" height="720" loading="${index < 3 ? 'eager' : 'lazy'}" decoding="async"></button>`).join('')}</div></section>
+    <div class="card stock-spec-card">
+      <div class="stock-spec-row"><span>型号</span><strong>${esc(product.detailModel || product.model)}</strong></div>
+      <div class="stock-spec-row"><span>价格</span><strong class="price">¥${product.price}</strong></div>
+      <div class="stock-spec-row"><span>成色</span><strong>${esc(product.condition)}</strong></div>
+      <div class="stock-spec-row"><span>配置</span><strong>${esc(product.configuration)}</strong></div>
+    </div>
+    <section class="card stock-description"><h2>具体机况</h2><p>${esc(product.description)}</p><p class="hint">当前为虚拟测试商品，后续接入后台后将显示小王填写的真实商品信息。</p></section>
+    <div class="stock-purchase-bar"><button class="primary-btn" id="buyButton" type="button" disabled>${sold ? '该商品已售出' : '功能测试中，暂未开放购买。'}</button></div>
+
+    <dialog class="purchase-dialog" id="purchaseDialog" aria-labelledby="purchaseDialogTitle">
+      <form class="dialog-card" id="purchaseForm">
+        <div class="dialog-head"><div><p class="eyebrow">购买信息</p><h2 id="purchaseDialogTitle">填写收货信息</h2></div><button class="dialog-close-text" type="button" data-close-dialog="purchaseDialog" aria-label="关闭购买页面">关闭</button></div>
+        <div class="dialog-product"><span>${esc(product.model)}</span><strong>¥${product.price}</strong></div>
+        <div class="form-grid compact-purchase-form">
+          <div class="field"><label for="stockBuyerName">姓名 <span class="required">*</span></label><input id="stockBuyerName" name="buyerName" type="text" autocomplete="name" required placeholder="请输入收货姓名"></div>
+          <div class="field"><label for="stockBuyerPhone">手机号 <span class="required">*</span></label><input id="stockBuyerPhone" name="buyerPhone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="请输入联系电话"></div>
+          <div class="field"><label for="stockBuyerAddress">收货地址 <span class="required">*</span></label><textarea id="stockBuyerAddress" name="buyerAddress" autocomplete="street-address" required placeholder="请填写省、市、区县、街道、小区及门牌号"></textarea></div>
+        </div>
+        <p class="dialog-privacy">当前为本地前台效果测试，填写内容不会上传、保存或发送。</p>
+        <button class="primary-btn dialog-primary" type="submit">确认购买</button>
+      </form>
+    </dialog>
+
+    <dialog class="purchase-dialog payment-confirm-dialog" id="paymentConfirmDialog" aria-labelledby="paymentConfirmTitle">
+      <div class="dialog-card">
+        <div class="dialog-head"><div><p class="eyebrow">付款确认</p><h2 id="paymentConfirmTitle">请核对购买信息</h2></div><button class="dialog-close-text" type="button" data-close-dialog="paymentConfirmDialog" aria-label="关闭付款页面">关闭</button></div>
+        <div class="purchase-summary">
+          <div><span>购买机型</span><strong>${esc(product.model)}</strong></div>
+          <div><span>手机价格</span><strong>¥${product.price}</strong></div>
+          <div><span>姓名</span><strong id="confirmBuyerName"></strong></div>
+          <div><span>手机号</span><strong id="confirmBuyerPhone"></strong></div>
+          <div><span>收货地址</span><strong id="confirmBuyerAddress"></strong></div>
+        </div>
+        <div class="amount-due"><span>应付款</span><strong>¥${product.price}</strong></div>
+        <div class="preview-warning">本地效果预览，请勿实际付款</div>
+        <div class="payment-grid stock-payment-grid" aria-label="付款二维码">
+          <div class="payment-card"><div class="stock-payment-image"><img src="./assets/payment-wechat.jpg" alt="微信支付收款二维码" width="800" height="1088" decoding="async"></div><p>微信支付</p></div>
+          <div class="payment-card"><div class="stock-payment-image"><img src="./assets/payment-alipay.png" alt="支付宝收款二维码" width="1708" height="2560" decoding="async"></div><p>支付宝</p></div>
+        </div>
+        <div class="payment-smallprint"><p>请确认商品及收货信息无误后付款。</p><p>付款完成后请截图，并将付款截图发送给小王确认。</p><p>确认付款后48小时内安排发货。</p><p>默认使用顺丰快递或京东快递，具体以实际发货为准。</p></div>
+        <button class="secondary-btn dialog-primary" type="button" data-close-dialog="paymentConfirmDialog">返回商品详情</button>
+      </div>
+    </dialog>
   </section>`;
 }
 
@@ -291,18 +452,40 @@ function about() {
   </section>`;
 }
 
-const routes = { home, 'taotao-1': taotao1, 'taotao-2': taotao2, 'taotao-3': taotao3, 'daipai-1': daipai1, 'daipai-2': daipai2, 'daipai-3': daipai3, 'quick-pay': quickPay, about };
+const routes = { home, 'stock-detail': stockDetail, 'taotao-1': taotao1, 'taotao-2': taotao2, 'taotao-3': taotao3, 'daipai-1': daipai1, 'daipai-2': daipai2, 'daipai-3': daipai3, 'quick-pay': quickPay, about };
 
 function render() {
   const route = routeName();
   if (!routes[route]) return go('home');
   if (route === 'daipai-3' && !canGenerateDaipai()) return go('daipai-2');
+  if (route !== 'stock-detail') unlockStockDetailScroll();
   app.innerHTML = routes[route]();
   bindPage(route);
   topAfterRender();
 }
 
 function bindPage(route) {
+  if (route === 'stock-detail') {
+    const purchaseDialog = document.querySelector('#purchaseDialog');
+    const paymentDialog = document.querySelector('#paymentConfirmDialog');
+    document.querySelector('#buyButton')?.addEventListener('click', () => {
+      lockStockDetailScroll();
+      purchaseDialog?.showModal();
+    });
+    document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => document.querySelector(`#${button.dataset.closeDialog}`)?.close()));
+    [purchaseDialog, paymentDialog].forEach(dialog => dialog?.addEventListener('close', () => {
+      if (!purchaseDialog?.open && !paymentDialog?.open) unlockStockDetailScroll();
+    }));
+    document.querySelector('#purchaseForm')?.addEventListener('submit', event => {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      document.querySelector('#confirmBuyerName').textContent = String(formData.get('buyerName') || '').trim();
+      document.querySelector('#confirmBuyerPhone').textContent = String(formData.get('buyerPhone') || '').trim();
+      document.querySelector('#confirmBuyerAddress').textContent = String(formData.get('buyerAddress') || '').trim();
+      paymentDialog?.showModal();
+      purchaseDialog?.close();
+    });
+  }
   if (route === 'taotao-1') {
     document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', () => {
       const value = presets[Number(btn.dataset.preset)];
