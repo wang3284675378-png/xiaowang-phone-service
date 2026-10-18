@@ -5,6 +5,12 @@
   const toast = document.querySelector('#adminToast');
   const api = window.XW_SUPABASE;
   const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const acceptedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+  const maxSourceImageBytes = 25 * 1024 * 1024;
+  const maxUploadImageBytes = 8 * 1024 * 1024;
+  const targetImageBytes = 2.5 * 1024 * 1024;
+  const maxImageDimension = 1800;
+  const loginGuardKey = 'xw-admin-login-guard-v1';
   const state = {
     session: null,
     user: null,
@@ -39,6 +45,30 @@
     showToast.timer = setTimeout(() => { toast.hidden = true; }, 3200);
   }
 
+  function readLoginGuard() {
+    try { return JSON.parse(sessionStorage.getItem(loginGuardKey) || '{"failures":[],"blockedUntil":0}'); }
+    catch { return { failures: [], blockedUntil: 0 }; }
+  }
+
+  function loginGuardWaitSeconds() {
+    const guard = readLoginGuard();
+    return Math.max(0, Math.ceil((Number(guard.blockedUntil || 0) - Date.now()) / 1000));
+  }
+
+  function recordLoginFailure() {
+    const now = Date.now();
+    const guard = readLoginGuard();
+    const failures = (guard.failures || []).filter(time => now - time < 10 * 60 * 1000);
+    failures.push(now);
+    const blockedUntil = failures.length >= 5 ? now + 2 * 60 * 1000 : 0;
+    sessionStorage.setItem(loginGuardKey, JSON.stringify({ failures, blockedUntil }));
+    return Math.max(0, Math.ceil((blockedUntil - now) / 1000));
+  }
+
+  function clearLoginFailures() {
+    sessionStorage.removeItem(loginGuardKey);
+  }
+
   function imageUrl(path) {
     if (!path) return '';
     if (/^(?:https?:|blob:|data:|\.\.\/|\.\/)/i.test(path)) return path;
@@ -62,7 +92,7 @@
         <p class="form-error" id="loginError" role="alert">${esc(message)}</p>
         <button class="primary wide" type="submit">安全登录</button>
       </form>` : `<div class="setup-notice"><strong>尚未连接 Supabase</strong><br>后台代码已在本地就绪。配置 Project URL 与 anon / publishable key 后，登录和云端保存才会启用。</div>
-        ${isLocal ? '<button class="secondary wide" id="previewAdmin" type="button" style="margin-top:12px">仅本地预览后台界面</button>' : ''}`}
+        ${isLocal ? '<button class="secondary wide preview-admin-button" id="previewAdmin" type="button">仅本地预览后台界面</button>' : ''}`}
     </section></div>`;
 
     document.querySelector('#loginForm')?.addEventListener('submit', handleLogin);
@@ -78,6 +108,11 @@
     const button = event.currentTarget.querySelector('button[type="submit"]');
     const errorNode = document.querySelector('#loginError');
     const form = new FormData(event.currentTarget);
+    const waitSeconds = loginGuardWaitSeconds();
+    if (waitSeconds > 0) {
+      errorNode.textContent = `登录失败次数较多，请 ${waitSeconds} 秒后再试。`;
+      return;
+    }
     button.disabled = true;
     button.textContent = '正在登录…';
     errorNode.textContent = '';
@@ -91,10 +126,14 @@
       }
       state.session = session;
       state.user = user;
+      clearLoginFailures();
       await loadProducts();
       renderDashboard();
     } catch (error) {
-      errorNode.textContent = error.message || '登录失败，请检查账号与密码。';
+      const blockedSeconds = recordLoginFailure();
+      errorNode.textContent = blockedSeconds
+        ? `登录失败次数较多，请 ${blockedSeconds} 秒后再试。`
+        : (error.message || '登录失败，请检查账号与密码。');
       button.disabled = false;
       button.textContent = '安全登录';
     }
@@ -235,8 +274,9 @@
         <div class="field"><label for="productConfiguration">配置</label><input id="productConfiguration" name="configuration" type="text" maxlength="160" value="${esc(product?.configuration || '')}" placeholder="例如：6GB 内存 · 256GB 存储"></div>
         <div class="field"><label for="productDescription">具体机况 <span class="required">*</span></label><textarea id="productDescription" name="description" maxlength="2000" required placeholder="填写功能、外观、维修情况等真实信息">${esc(product?.description || '')}</textarea></div>
         <div class="field"><label for="productOrder">展示顺序</label><input id="productOrder" name="display_order" type="number" inputmode="numeric" min="0" step="1" value="${esc(product?.display_order ?? nextOrder)}"><small>数字越小越靠前；已售出商品仍会自动排在所有在售商品后面。</small></div>
-        <section class="image-section"><h3>商品主图 <span class="required">*</span></h3><input class="file-input" id="mainImageInput" type="file" accept="image/jpeg,image/png,image/webp"><small>支持 JPG、PNG、WebP，单张不超过 8MB。手机端可直接从相册选择。</small><div class="image-previews" id="mainImagePreview"></div></section>
-        <section class="image-section"><h3>实拍图片（最多9张）</h3><input class="file-input" id="galleryInput" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>可一次选择多张，也可分次补充；保存前可以逐张删除。</small><div class="image-previews" id="galleryPreview"></div></section>
+        <section class="image-section"><h3>商品主图 <span class="required">*</span></h3><input class="file-input" id="mainImageInput" type="file" accept="image/jpeg,image/png,image/webp"><small>支持 JPG、PNG、WebP；选择后会在手机本地自动压缩，单张原图最大 25MB。</small><div class="image-previews" id="mainImagePreview"></div></section>
+        <section class="image-section"><h3>实拍图片（最多9张）</h3><input class="file-input" id="galleryInput" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>可一次选择多张；系统会去重、压缩，并最多同时上传3张。</small><div class="image-previews" id="galleryPreview"></div></section>
+        <div class="upload-progress" id="uploadProgress" role="status" aria-live="polite" hidden><div class="upload-progress-track"><span id="uploadProgressBar"></span></div><span id="uploadProgressText">准备图片…</span></div>
         <p class="form-error" id="productError" role="alert"></p>
         <div class="editor-actions"><button class="secondary" id="cancelEditor" type="button">取消</button><button class="primary" id="saveProduct" type="submit">保存商品</button></div>
       </form>
@@ -264,8 +304,8 @@
   }
 
   function validateImage(file) {
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return '只支持 JPG、PNG 或 WebP 图片。';
-    if (file.size > 8 * 1024 * 1024) return `图片“${file.name}”超过 8MB。`;
+    if (!acceptedImageTypes.has(file.type)) return '只支持 JPG、PNG 或 WebP 图片。';
+    if (file.size > maxSourceImageBytes) return `图片“${file.name}”超过 25MB。`;
     return '';
   }
 
@@ -281,7 +321,13 @@
   }
 
   function handleGalleryFiles(event) {
-    const files = [...(event.target.files || [])];
+    const known = new Set(state.galleryFiles.map(item => `${item.file.name}:${item.file.size}:${item.file.lastModified}`));
+    const files = [...(event.target.files || [])].filter(file => {
+      const fingerprint = `${file.name}:${file.size}:${file.lastModified}`;
+      if (known.has(fingerprint)) return false;
+      known.add(fingerprint);
+      return true;
+    });
     const total = state.retainedGalleryPaths.length + state.galleryFiles.length + files.length;
     if (total > 9) { document.querySelector('#productError').textContent = `实拍图片最多9张，当前选择后将达到${total}张。`; event.target.value = ''; return; }
     const invalid = files.map(validateImage).find(Boolean);
@@ -324,6 +370,80 @@
     return ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' })[file.type] || 'jpg';
   }
 
+  function setUploadProgress(percent, text) {
+    const box = document.querySelector('#uploadProgress');
+    const bar = document.querySelector('#uploadProgressBar');
+    const label = document.querySelector('#uploadProgressText');
+    if (!box || !bar || !label) return;
+    box.hidden = false;
+    bar.style.width = `${Math.max(0, Math.min(100, Math.round(percent)))}%`;
+    label.textContent = text;
+  }
+
+  function canvasBlob(canvas, type, quality) {
+    return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+  }
+
+  async function decodeImage(file) {
+    if ('createImageBitmap' in window) return createImageBitmap(file, { imageOrientation: 'from-image' });
+    const url = URL.createObjectURL(file);
+    try {
+      const image = new Image();
+      image.decoding = 'async';
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error(`无法读取图片“${file.name}”。`));
+        image.src = url;
+      });
+      return image;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function prepareImage(file) {
+    const source = await decodeImage(file);
+    const sourceWidth = source.width || source.naturalWidth;
+    const sourceHeight = source.height || source.naturalHeight;
+    const ratio = Math.min(1, maxImageDimension / Math.max(sourceWidth, sourceHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(sourceWidth * ratio));
+    canvas.height = Math.max(1, Math.round(sourceHeight * ratio));
+    const context = canvas.getContext('2d', { alpha: true });
+    if (!context) throw new Error('当前浏览器无法压缩图片，请更换浏览器后重试。');
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    source.close?.();
+
+    let type = 'image/webp';
+    let quality = 0.84;
+    let blob = await canvasBlob(canvas, type, quality);
+    if (!blob) {
+      type = 'image/jpeg';
+      blob = await canvasBlob(canvas, type, quality);
+    }
+    while (blob && blob.size > targetImageBytes && quality > 0.52) {
+      quality -= 0.08;
+      blob = await canvasBlob(canvas, type, quality);
+    }
+    if (!blob || blob.size > maxUploadImageBytes) throw new Error(`图片“${file.name}”压缩后仍超过 8MB，请先裁剪后重试。`);
+    const base = file.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '-').slice(0, 40) || 'photo';
+    return new File([blob], `${base}.${type === 'image/webp' ? 'webp' : 'jpg'}`, { type, lastModified: Date.now() });
+  }
+
+  async function mapWithConcurrency(items, limit, worker) {
+    const results = new Array(items.length);
+    let cursor = 0;
+    async function run() {
+      while (cursor < items.length) {
+        const index = cursor;
+        cursor += 1;
+        results[index] = await worker(items[index], index);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+    return results;
+  }
+
   async function saveProduct(event) {
     event.preventDefault();
     const errorNode = document.querySelector('#productError');
@@ -361,21 +481,40 @@
         const uploaded = [];
         const pathsToRemove = [...state.removedPaths];
         try {
+          const selectedFiles = [state.mainFile?.file, ...state.galleryFiles.map(item => item.file)].filter(Boolean);
+          setUploadProgress(2, selectedFiles.length ? '正在压缩图片…' : '正在保存商品信息…');
+          const preparedFiles = await mapWithConcurrency(selectedFiles, 2, prepareImage);
+          let preparedCursor = 0;
+          const preparedMain = state.mainFile ? preparedFiles[preparedCursor++] : null;
+          const preparedGallery = state.galleryFiles.map(() => preparedFiles[preparedCursor++]);
           let mainPath = state.mainImagePath;
+          const uploadTasks = [];
           if (state.mainFile) {
             if (state.mainImagePath) pathsToRemove.push(state.mainImagePath);
-            mainPath = `${productId}/main-${Date.now()}.${extensionFor(state.mainFile.file)}`;
-            await api.uploadImage(mainPath, state.mainFile.file, state.session);
-            uploaded.push(mainPath);
+            mainPath = `${productId}/main-${Date.now()}.${extensionFor(preparedMain)}`;
+            uploadTasks.push({ path: mainPath, file: preparedMain, galleryIndex: -1 });
           }
-          const newGalleryPaths = [];
+          const newGalleryPaths = new Array(state.galleryFiles.length);
           for (let index = 0; index < state.galleryFiles.length; index += 1) {
-            const item = state.galleryFiles[index];
-            const path = `${productId}/gallery-${Date.now()}-${index + 1}.${extensionFor(item.file)}`;
-            await api.uploadImage(path, item.file, state.session);
-            uploaded.push(path);
-            newGalleryPaths.push(path);
+            const file = preparedGallery[index];
+            const path = `${productId}/gallery-${Date.now()}-${index + 1}.${extensionFor(file)}`;
+            uploadTasks.push({ path, file, galleryIndex: index });
           }
+          const taskProgress = new Array(uploadTasks.length).fill(0);
+          await mapWithConcurrency(uploadTasks, 3, async (task, taskIndex) => {
+            await api.uploadImage(task.path, task.file, state.session, {
+              retries: 2,
+              onProgress: (loaded, total) => {
+                taskProgress[taskIndex] = total ? loaded / total : 0;
+                const average = taskProgress.reduce((sum, value) => sum + value, 0) / Math.max(1, taskProgress.length);
+                setUploadProgress(10 + average * 82, `正在上传图片 ${taskIndex + 1}/${uploadTasks.length}…`);
+              }
+            });
+            uploaded.push(task.path);
+            taskProgress[taskIndex] = 1;
+            if (task.galleryIndex >= 0) newGalleryPaths[task.galleryIndex] = task.path;
+          });
+          setUploadProgress(94, '图片上传完成，正在保存商品信息…');
           const payload = { ...record, main_image_path: mainPath, gallery_image_paths: [...state.retainedGalleryPaths, ...newGalleryPaths] };
           if (state.editingId) await api.update('stock_products', productId, payload, state.session);
           else await api.insert('stock_products', { id: productId, ...payload }, state.session);
@@ -386,6 +525,7 @@
           throw error;
         }
         await loadProducts();
+        setUploadProgress(100, '保存完成');
       }
       closeEditor(state.preview);
       renderDashboard();

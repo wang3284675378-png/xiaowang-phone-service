@@ -270,6 +270,7 @@ function stockDetail() {
   if (!product || product.status === 'hidden') return `<section class="page stock-detail-page">${serviceHeading('现货手机', '商品不存在', '该商品可能已下架或链接有误。')}<div class="actions">${backButton('home', '返回首页')}</div></section>`;
 
   const sold = product.status === 'sold';
+  const purchaseEnabled = product.isLive && !sold;
   const galleryImages = product.isLive
     ? product.images.slice(0, 9)
     : Array.from({ length: 9 }, (_, index) => product.images[index % product.images.length]);
@@ -287,7 +288,7 @@ function stockDetail() {
       <div class="stock-spec-row"><span>配置</span><strong>${esc(product.configuration)}</strong></div>
     </div>
     <section class="card stock-description"><h2>具体机况</h2><p>${esc(product.description)}</p>${stockDataMode === 'demo' ? '<p class="hint">当前为虚拟测试商品，后续接入后台后将显示小王填写的真实商品信息。</p>' : ''}</section>
-    <div class="stock-purchase-bar"><button class="primary-btn" id="buyButton" type="button" disabled>${sold ? '该商品已售出' : '功能测试中，暂未开放购买。'}</button></div>
+    <div class="stock-purchase-bar"><button class="primary-btn" id="buyButton" type="button" ${purchaseEnabled ? '' : 'disabled'}>${sold ? '该商品已售出' : purchaseEnabled ? '我要购买' : '演示商品，暂不可购买'}</button></div>
 
     <dialog class="purchase-dialog" id="purchaseDialog" aria-labelledby="purchaseDialogTitle">
       <form class="dialog-card" id="purchaseForm">
@@ -298,7 +299,7 @@ function stockDetail() {
           <div class="field"><label for="stockBuyerPhone">手机号 <span class="required">*</span></label><input id="stockBuyerPhone" name="buyerPhone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="请输入联系电话"></div>
           <div class="field"><label for="stockBuyerAddress">收货地址 <span class="required">*</span></label><textarea id="stockBuyerAddress" name="buyerAddress" autocomplete="street-address" required placeholder="请填写省、市、区县、街道、小区及门牌号"></textarea></div>
         </div>
-        <p class="dialog-privacy">当前为本地前台效果测试，填写内容不会上传、保存或发送。</p>
+        <p class="dialog-privacy">${product.isLive ? '收货信息仅用于本页核对，不会自动提交或写入数据库。付款后请将付款截图发送给小王确认。' : '当前为虚拟演示商品，填写内容不会上传、保存或发送。'}</p>
         <button class="primary-btn dialog-primary" type="submit">确认购买</button>
       </form>
     </dialog>
@@ -314,7 +315,7 @@ function stockDetail() {
           <div><span>收货地址</span><strong id="confirmBuyerAddress"></strong></div>
         </div>
         <div class="amount-due"><span>应付款</span><strong>¥${product.price}</strong></div>
-        <div class="preview-warning">本地效果预览，请勿实际付款</div>
+        ${product.isLive ? '' : '<div class="preview-warning">虚拟演示商品，请勿实际付款</div>'}
         <div class="payment-grid stock-payment-grid" aria-label="付款二维码">
           <div class="payment-card"><div class="stock-payment-image"><img src="./assets/payment-wechat.jpg" alt="微信支付收款二维码" width="800" height="1088" decoding="async"></div><p>微信支付</p></div>
           <div class="payment-card"><div class="stock-payment-image"><img src="./assets/payment-alipay.png" alt="支付宝收款二维码" width="1708" height="2560" decoding="async"></div><p>支付宝</p></div>

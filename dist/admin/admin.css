@@ -54,6 +54,7 @@ img { display: block; max-width: 100%; }
 .text-button { min-height: 36px; padding: 6px 10px; border: 0; color: var(--blue-dark); background: #eef5ff; }
 .primary:disabled, .secondary:disabled, .danger:disabled, .text-button:disabled { cursor: not-allowed; opacity: .45; transform: none; }
 .wide { width: 100%; }
+.preview-admin-button { margin-top: 12px; }
 
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .toolbar h2 { margin: 0; font-size: 18px; }
@@ -90,6 +91,10 @@ img { display: block; max-width: 100%; }
 .image-preview img { width: 100%; height: 100%; object-fit: cover; }
 .image-preview button { position: absolute; top: 5px; right: 5px; display: grid; width: 28px; height: 28px; place-items: center; border: 0; border-radius: 50%; color: #fff; background: rgba(20,32,51,.78); cursor: pointer; }
 .file-input { width: 100%; padding: 9px; border: 1px dashed #aebbd0; border-radius: 12px; color: var(--muted); background: #fff; }
+.upload-progress { display: grid; gap: 7px; padding: 10px 12px; border: 1px solid #cfe0f8; border-radius: 12px; color: #31527d; background: #f4f8ff; font-size: 12px; font-weight: 700; }
+.upload-progress[hidden] { display: none; }
+.upload-progress-track { height: 7px; overflow: hidden; border-radius: 999px; background: #dce8f8; }
+.upload-progress-track span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1677ff, #43a0ff); transition: width .2s ease; }
 .editor-actions { position: sticky; bottom: -24px; display: grid; grid-template-columns: 1fr 1.6fr; gap: 9px; margin: 16px -16px -16px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); border-radius: 0 0 20px 20px; background: rgba(255,255,255,.96); backdrop-filter: blur(15px); }
 .form-error { min-height: 20px; margin: 4px 0 0; color: var(--danger); font-size: 12px; line-height: 1.5; }
 
