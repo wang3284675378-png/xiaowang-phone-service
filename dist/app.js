@@ -45,7 +45,7 @@ const inspectionWith = '需要小王帮忙验机';
 const inspectionWithout = '不需要小王帮忙验机';
 const daipaiShippingFields = ['phoneModel', 'recipientName', 'phone', 'province', 'city', 'district', 'address'];
 
-const stockProducts = [
+const demoStockProducts = [
   {
     id: 'iphone-13-pro-256',
     model: 'iPhone 13 Pro 256G',
@@ -100,6 +100,52 @@ const stockProducts = [
   }
 ];
 
+const stockApi = window.XW_SUPABASE;
+let stockDataMode = stockApi?.isConfigured() ? 'loading' : 'demo';
+let stockProducts = stockDataMode === 'demo' ? structuredClone(demoStockProducts) : [];
+
+function stockStorageUrl(path) {
+  return path ? stockApi.publicImageUrl(path) : '';
+}
+
+function mapStockProduct(row) {
+  const mainImage = stockStorageUrl(row.main_image_path);
+  const galleryImages = (row.gallery_image_paths || []).map(stockStorageUrl).filter(Boolean).slice(0, 9);
+  return {
+    id: row.id,
+    model: [row.model, row.memory].filter(Boolean).join(' '),
+    detailModel: row.model,
+    capacity: row.memory,
+    price: Number(row.price || 0),
+    condition: row.condition,
+    color: row.color || '',
+    configuration: [row.configuration, row.color].filter(Boolean).join(' · '),
+    description: row.description,
+    status: row.status === 'on_sale' ? 'in-stock' : row.status,
+    order: Number(row.display_order || 0),
+    mainImage,
+    images: galleryImages.length ? galleryImages : (mainImage ? [mainImage] : []),
+    isLive: true
+  };
+}
+
+async function refreshStockProducts() {
+  if (!stockApi?.isConfigured()) return;
+  try {
+    const rows = await stockApi.select('stock_products', {
+      select: 'id,model,memory,price,condition,color,configuration,description,status,display_order,main_image_path,gallery_image_paths,updated_at',
+      order: 'display_order.asc,created_at.asc'
+    });
+    stockProducts = rows.map(mapStockProduct);
+    stockDataMode = 'live';
+  } catch (error) {
+    console.error('现货数据加载失败：', error);
+    stockProducts = [];
+    stockDataMode = 'error';
+  }
+  render();
+}
+
 function orderedStockProducts() {
   return stockProducts
     .filter(product => product.status !== 'hidden')
@@ -113,9 +159,10 @@ function stockProductId() {
 
 function stockCard(product) {
   const sold = product.status === 'sold';
+  const mainImage = product.mainImage || product.images[0];
   return `<button class="stock-card ${sold ? 'is-sold' : ''}" type="button" data-route="stock-detail?item=${encodeURIComponent(product.id)}" aria-label="查看${esc(product.model)}详情${sold ? '，已售出' : ''}">
     <span class="stock-card-copy"><strong>${esc(product.model)}</strong><b>¥${product.price}</b></span>
-    <span class="stock-card-image"><img src="${product.images[0]}" alt="${esc(product.model)}测试展示主图" width="720" height="900" loading="lazy" decoding="async">${sold ? '<span class="sold-badge">已售出</span>' : ''}</span>
+    <span class="stock-card-image">${mainImage ? `<img src="${esc(mainImage)}" alt="${esc(product.model)}主图" width="720" height="900" loading="lazy" decoding="async">` : '<span class="stock-image-missing">图片待补充</span>'}${sold ? '<span class="sold-badge">已售出</span>' : ''}</span>
   </button>`;
 }
 
@@ -209,11 +256,11 @@ function home() {
     </div>
     <section class="stock-home" aria-labelledby="stockHomeTitle">
       <div class="stock-section-head">
-        <div><p class="eyebrow">功能测试预览</p><h2 id="stockHomeTitle">现货手机</h2><p class="stock-testing-note">该内容正在测试，敬请期待后续开放。</p></div>
+        <div><p class="eyebrow">${stockDataMode === 'live' ? '库存实时更新' : '功能测试预览'}</p><h2 id="stockHomeTitle">现货手机</h2>${stockDataMode === 'live' ? '' : '<p class="stock-testing-note">该内容正在测试，敬请期待后续开放。</p>'}</div>
         <span>${products.filter(product => product.status === 'in-stock').length} 台有货</span>
       </div>
-      ${products.length ? `<div class="stock-grid">${products.map(stockCard).join('')}</div>` : '<div class="stock-empty"><strong>暂无现货</strong><p>欢迎咨询代淘服务。</p></div>'}
-      <p class="stock-demo-note">当前为前台效果测试，商品与图片均为虚拟演示内容，请勿据此付款。</p>
+      ${stockDataMode === 'loading' ? '<div class="stock-empty"><strong>正在加载现货</strong><p>请稍候…</p></div>' : stockDataMode === 'error' ? '<div class="stock-empty"><strong>现货加载失败</strong><p>请稍后刷新，或先咨询代淘服务。</p></div>' : products.length ? `<div class="stock-grid">${products.map(stockCard).join('')}</div>` : '<div class="stock-empty"><strong>暂无现货</strong><p>欢迎咨询代淘服务。</p></div>'}
+      ${stockDataMode === 'demo' ? '<p class="stock-demo-note">当前为前台效果测试，商品与图片均为虚拟演示内容，请勿据此付款。</p>' : ''}
     </section>
   </section>`;
 }
@@ -223,21 +270,23 @@ function stockDetail() {
   if (!product || product.status === 'hidden') return `<section class="page stock-detail-page">${serviceHeading('现货手机', '商品不存在', '该商品可能已下架或链接有误。')}<div class="actions">${backButton('home', '返回首页')}</div></section>`;
 
   const sold = product.status === 'sold';
-  const galleryImages = Array.from({ length: 9 }, (_, index) => product.images[index % product.images.length]);
+  const galleryImages = product.isLive
+    ? product.images.slice(0, 9)
+    : Array.from({ length: 9 }, (_, index) => product.images[index % product.images.length]);
   return `<section class="page stock-detail-page">
-    <div class="stock-detail-topbar"><button class="mini-home-btn" type="button" data-route="home">← 返回首页</button><span class="stock-demo-pill">测试商品</span></div>
+    <div class="stock-detail-topbar"><button class="mini-home-btn" type="button" data-route="home">← 返回首页</button>${stockDataMode === 'demo' ? '<span class="stock-demo-pill">测试商品</span>' : ''}</div>
     <div class="stock-detail-hero">
       <div class="stock-detail-title"><h1>${esc(product.detailModel || product.model)}</h1><span class="stock-detail-capacity">${esc(product.capacity || product.configuration)}</span><div class="stock-detail-price">¥${product.price}</div></div>
       <span class="stock-status ${sold ? 'sold' : 'available'}">${sold ? '已售出' : '有货'}</span>
     </div>
-    <section class="stock-gallery" aria-label="9张手机实拍图片"><div class="stock-gallery-list">${galleryImages.map((image, index) => `<button class="zoomable stock-gallery-image" type="button" data-image="${image}" data-alt="${esc(product.model)}测试展示图${index + 1}" aria-label="查看第${index + 1}张实拍图片"><img src="${image}" alt="${esc(product.model)}测试展示图${index + 1}" width="720" height="720" loading="${index < 3 ? 'eager' : 'lazy'}" decoding="async"></button>`).join('')}</div></section>
+    <section class="stock-gallery" aria-label="手机实拍图片"><div class="stock-gallery-list">${galleryImages.map((image, index) => `<button class="zoomable stock-gallery-image" type="button" data-image="${esc(image)}" data-alt="${esc(product.model)}实拍图${index + 1}" aria-label="查看第${index + 1}张实拍图片"><img src="${esc(image)}" alt="${esc(product.model)}实拍图${index + 1}" width="720" height="720" loading="${index < 3 ? 'eager' : 'lazy'}" decoding="async"></button>`).join('')}</div></section>
     <div class="card stock-spec-card">
       <div class="stock-spec-row"><span>型号</span><strong>${esc(product.detailModel || product.model)}</strong></div>
       <div class="stock-spec-row"><span>价格</span><strong class="price">¥${product.price}</strong></div>
       <div class="stock-spec-row"><span>成色</span><strong>${esc(product.condition)}</strong></div>
       <div class="stock-spec-row"><span>配置</span><strong>${esc(product.configuration)}</strong></div>
     </div>
-    <section class="card stock-description"><h2>具体机况</h2><p>${esc(product.description)}</p><p class="hint">当前为虚拟测试商品，后续接入后台后将显示小王填写的真实商品信息。</p></section>
+    <section class="card stock-description"><h2>具体机况</h2><p>${esc(product.description)}</p>${stockDataMode === 'demo' ? '<p class="hint">当前为虚拟测试商品，后续接入后台后将显示小王填写的真实商品信息。</p>' : ''}</section>
     <div class="stock-purchase-bar"><button class="primary-btn" id="buyButton" type="button" disabled>${sold ? '该商品已售出' : '功能测试中，暂未开放购买。'}</button></div>
 
     <dialog class="purchase-dialog" id="purchaseDialog" aria-labelledby="purchaseDialogTitle">
@@ -565,3 +614,4 @@ modal.addEventListener('click', e => { if (e.target === modal) closeImage(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeImage(); });
 window.addEventListener('hashchange', render);
 render();
+refreshStockProducts();

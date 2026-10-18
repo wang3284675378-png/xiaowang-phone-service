@@ -4,6 +4,13 @@ const requiredFiles = [
   "dist/index.html",
   "dist/styles.css",
   "dist/app.js",
+  "dist/favicon.svg",
+  "dist/supabase-config.js",
+  "dist/supabase-client.js",
+  "dist/admin/index.html",
+  "dist/admin/admin.css",
+  "dist/admin/admin.js",
+  "supabase/schema.sql",
   "dist/assets/business-license.jpg",
   "dist/assets/video-evidence-rules.jpg",
   "dist/assets/xiaowang-portrait.jpg",
@@ -22,10 +29,13 @@ const requiredFiles = [
 
 await Promise.all(requiredFiles.map((file) => access(file)));
 
-const [html, css, javascript] = await Promise.all([
+const [html, css, javascript, adminHtml, adminJavascript, supabaseSchema] = await Promise.all([
   readFile("dist/index.html", "utf8"),
   readFile("dist/styles.css", "utf8"),
   readFile("dist/app.js", "utf8"),
+  readFile("dist/admin/index.html", "utf8"),
+  readFile("dist/admin/admin.js", "utf8"),
+  readFile("supabase/schema.sql", "utf8"),
 ]);
 
 for (const [name, source] of Object.entries({ html, css, javascript })) {
@@ -34,8 +44,31 @@ for (const [name, source] of Object.entries({ html, css, javascript })) {
   }
 }
 
-if (!html.includes("./styles.css") || !html.includes("./app.js")) {
+if (!html.includes("./styles.css") || !html.includes("./app.js") || !html.includes("./supabase-client.js")) {
   throw new Error("The production entry page is missing its stylesheet or JavaScript reference.");
+}
+
+if (!adminHtml.includes("./admin.css") || !adminHtml.includes("./admin.js") || !adminHtml.includes("../supabase-client.js")) {
+  throw new Error("The admin entry page is missing required assets.");
+}
+
+for (const forbidden of ["SUPABASE_SERVICE_ROLE", "password="]) {
+  if (adminJavascript.includes(forbidden) || html.includes(forbidden)) {
+    throw new Error(`A private credential marker was found in browser code: ${forbidden}`);
+  }
+}
+
+for (const requiredSecurityRule of [
+  "alter table public.stock_products enable row level security",
+  "public can read visible stock",
+  "admins can insert stock",
+  "admins can update stock",
+  "admins can delete stock",
+  "admins can upload stock images",
+]) {
+  if (!supabaseSchema.includes(requiredSecurityRule)) {
+    throw new Error(`Supabase schema is missing required security rule: ${requiredSecurityRule}`);
+  }
 }
 
 for (const requiredCopy of [

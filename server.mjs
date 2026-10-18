@@ -11,7 +11,14 @@ createServer(async (req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, `http://${req.headers.host}`).pathname);
     const safePath = normalize(pathname).replace(/^(\.\.[/\\])+/, '');
     let file = join(root, safePath === '/' ? 'index.html' : safePath);
-    if (!(await stat(file)).isFile()) file = join(root, 'index.html');
+    const fileStat = await stat(file);
+    if (fileStat.isDirectory() && !pathname.endsWith('/')) {
+      res.writeHead(301, { Location: `${pathname}/` });
+      res.end();
+      return;
+    }
+    if (fileStat.isDirectory()) file = join(file, 'index.html');
+    else if (!fileStat.isFile()) file = join(root, 'index.html');
     const data = await readFile(file);
     res.writeHead(200, { 'Content-Type': types[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     res.end(data);
