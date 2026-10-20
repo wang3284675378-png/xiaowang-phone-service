@@ -68,11 +68,14 @@ img { display: block; max-width: 100%; }
 .status-pill.on_sale { color: #0f713b; background: #e7f8ed; }
 .status-pill.sold { color: #667085; background: #edf0f4; }
 .status-pill.hidden { color: #8a5200; background: #fff3dc; }
+.status-pill.paused { color: #9a3412; background: #fff1e8; }
+.status-pill.restocking { color: #31527d; background: #eaf2ff; }
 .product-body { min-width: 0; }
 .product-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .product-title-row h3 { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 16px; }
 .product-price { margin: 4px 0 7px; color: var(--danger); font-size: 18px; font-weight: 900; }
 .product-meta { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.product-recommend-meta { margin: 4px 0 0; color: #31527d; font-size: 11px; font-weight: 700; line-height: 1.5; }
 .product-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .product-actions button { min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; color: #344054; background: #f9fafb; font-size: 12px; font-weight: 750; cursor: pointer; }
 .product-actions button[data-action="delete"] { color: var(--danger); border-color: #fecaca; background: #fff7f7; }
@@ -85,6 +88,13 @@ img { display: block; max-width: 100%; }
 .editor-head { position: sticky; top: -12px; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -16px -16px 15px; padding: 14px 16px; border-bottom: 1px solid var(--line); border-radius: 20px 20px 0 0; background: rgba(255,255,255,.96); backdrop-filter: blur(15px); }
 .editor-head h2 { margin: 0; font-size: 20px; }
 .image-section { padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #f9fbfd; }
+.recommend-settings { display: grid; gap: 12px; margin: 0; padding: 13px; border: 1px solid #cfe0f8; border-radius: 14px; background: #f6f9ff; }
+.recommend-settings legend { padding: 0 6px; color: #174f9c; font-size: 14px; font-weight: 850; }
+.recommend-toggle { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+.recommend-toggle input { flex: 0 0 auto; width: 20px; height: 20px; margin-top: 1px; accent-color: var(--blue); }
+.recommend-toggle strong, .recommend-toggle small { display: block; }
+.recommend-toggle strong { color: #24344d; font-size: 13px; }
+.recommend-toggle small { margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .image-section h3 { margin: 0 0 9px; font-size: 15px; }
 .image-previews { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .image-preview { position: relative; aspect-ratio: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #eef2f7; }

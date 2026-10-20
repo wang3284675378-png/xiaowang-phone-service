@@ -121,14 +121,36 @@ for (const requiredCopy of [
   "当前为前台效果测试，商品与图片均为虚拟演示内容，请勿据此付款。",
   "演示商品，暂不可购买",
   "我要购买",
+  "购机享180天质保",
+  "非人为原因导致的功能故障，由小王负责售后处理",
+  "刚好有一台符合你需求的现货",
+  "暂时没有合适现货，继续让小王帮你找。",
+  "不喜欢，继续找小王代淘",
 ]) {
   if (!javascript.includes(requiredCopy)) {
     throw new Error(`The stock-phone test release is missing required copy: ${requiredCopy}`);
   }
 }
 
-if (!css.includes("grid-template-columns: repeat(3, minmax(0, 1fr))")) {
-  throw new Error("The stock-phone detail gallery is not configured as a 3-column grid.");
+for (const requiredRecommendationFeature of [
+  "smart_recommend",
+  "game_max_fps",
+  "game_quality",
+  "bestStockRecommendation",
+  "preset.budget * 1.2",
+  "product.status === 'in-stock'",
+]) {
+  if (!javascript.includes(requiredRecommendationFeature) && !adminJavascript.includes(requiredRecommendationFeature) && !supabaseSchema.includes(requiredRecommendationFeature)) {
+    throw new Error(`The smart stock recommendation flow is missing: ${requiredRecommendationFeature}`);
+  }
+}
+
+if (!/\.stock-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s.test(css)) {
+  throw new Error("The stock-phone home grid is not configured as a 3-column grid.");
+}
+
+if (!adminJavascript.includes("参与智能推荐") || !adminJavascript.includes("和平精英最高帧率") || !adminJavascript.includes("推荐画质")) {
+  throw new Error("The admin product editor is missing smart recommendation fields.");
 }
 
 console.log(`Production site verified: ${requiredFiles.length} required files are present.`);

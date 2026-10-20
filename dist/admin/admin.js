@@ -5,6 +5,7 @@
   const toast = document.querySelector('#adminToast');
   const api = window.XW_SUPABASE;
   const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const forceLocalPreview = isLocal && new URLSearchParams(location.search).has('preview');
   const acceptedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
   const maxSourceImageBytes = 25 * 1024 * 1024;
   const maxUploadImageBytes = 8 * 1024 * 1024;
@@ -25,8 +26,8 @@
   };
 
   const demoProducts = [
-    { id: 'preview-1', model: 'iPhone 13 Pro', memory: '256GB', price: 2699, condition: '95新', color: '远峰蓝', configuration: '6GB 内存 · 256GB 存储', description: '本地后台界面预览商品，可测试编辑、状态与排序操作。', status: 'on_sale', display_order: 1, main_image_path: '../assets/stock-demo-blue-front.svg', gallery_image_paths: ['../assets/stock-demo-blue-front.svg', '../assets/stock-demo-blue-back.svg'] },
-    { id: 'preview-2', model: '小米 13', memory: '12GB + 256GB', price: 2099, condition: '9成新', color: '黑色', configuration: '12GB 内存 · 256GB 存储', description: '本地预览数据不会上传，也不会修改正式网站。', status: 'sold', display_order: 2, main_image_path: '../assets/stock-demo-black-front.svg', gallery_image_paths: ['../assets/stock-demo-black-front.svg', '../assets/stock-demo-black-back.svg'] }
+    { id: 'preview-1', model: 'vivo S9', memory: '8GB + 256GB', price: 450, condition: '9成新', color: '印象拾光', configuration: '8GB 内存 · 256GB 存储', description: '本地后台界面预览商品，可测试编辑、状态与排序操作。', status: 'on_sale', smart_recommend: true, game_max_fps: 90, game_quality: '流畅', display_order: 1, main_image_path: '../assets/stock-demo-blue-front.svg', gallery_image_paths: ['../assets/stock-demo-blue-front.svg', '../assets/stock-demo-blue-back.svg'] },
+    { id: 'preview-2', model: '小米 13', memory: '12GB + 256GB', price: 2099, condition: '9成新', color: '黑色', configuration: '12GB 内存 · 256GB 存储', description: '本地预览数据不会上传，也不会修改正式网站。', status: 'sold', smart_recommend: false, game_max_fps: 120, game_quality: '流畅', display_order: 2, main_image_path: '../assets/stock-demo-black-front.svg', gallery_image_paths: ['../assets/stock-demo-black-front.svg', '../assets/stock-demo-black-back.svg'] }
   ];
 
   function esc(value = '') {
@@ -34,7 +35,7 @@
   }
 
   function statusText(status) {
-    return ({ on_sale: '在售', sold: '已售出', hidden: '隐藏' })[status] || status;
+    return ({ on_sale: '在售', sold: '已售出', hidden: '隐藏', paused: '暂停出售', restocking: '调货中' })[status] || status;
   }
 
   function showToast(message, error = false) {
@@ -76,12 +77,12 @@
   }
 
   function sortProducts(products) {
-    const rank = { on_sale: 0, sold: 1, hidden: 2 };
+    const rank = { on_sale: 0, paused: 1, restocking: 2, sold: 3, hidden: 4 };
     return [...products].sort((a, b) => (rank[a.status] ?? 3) - (rank[b.status] ?? 3) || Number(a.display_order) - Number(b.display_order) || String(a.created_at || '').localeCompare(String(b.created_at || '')));
   }
 
   function renderLogin(message = '') {
-    const configured = api?.isConfigured();
+    const configured = api?.isConfigured() && !forceLocalPreview;
     app.innerHTML = `<div class="login-shell"><section class="panel login-card">
       <div class="login-mark" aria-hidden="true">王</div>
       <h1>现货管理后台</h1>
@@ -152,7 +153,8 @@
       <div class="product-body">
         <div class="product-title-row"><h3>${esc(product.model)} ${esc(product.memory)}</h3><span class="status-pill ${esc(product.status)}">${statusText(product.status)}</span></div>
         <div class="product-price">¥${Number(product.price || 0)}</div>
-        <p class="product-meta">${esc(product.condition)} · ${esc(product.color || '未填颜色')} · 排序 ${Number(product.display_order || 0)}</p>
+        <p class="product-meta">${[product.condition, product.color || '未填颜色', `排序 ${Number(product.display_order || 0)}`].filter(Boolean).map(esc).join(' · ')}</p>
+        <p class="product-recommend-meta">${product.smart_recommend ? `智能推荐：${Number(product.game_max_fps || 0) || '其他'}帧 · ${esc(product.game_quality || '其他')}` : '智能推荐：未开启'}</p>
         <div class="product-actions">
           <button type="button" data-action="edit">编辑</button>
           <button type="button" data-action="sale">${product.status === 'on_sale' ? '已售出' : '恢复在售'}</button>
@@ -267,10 +269,17 @@
           <div class="field"><label for="productModel">手机型号 <span class="required">*</span></label><input id="productModel" name="model" type="text" maxlength="80" value="${esc(product?.model || '')}" required placeholder="例如：iPhone 13 Pro"></div>
           <div class="field"><label for="productMemory">内存容量 <span class="required">*</span></label><input id="productMemory" name="memory" type="text" maxlength="50" value="${esc(product?.memory || '')}" required placeholder="例如：256GB"></div>
           <div class="field"><label for="productPrice">价格（元） <span class="required">*</span></label><input id="productPrice" name="price" type="number" inputmode="decimal" min="0" step="1" value="${esc(product?.price ?? '')}" required placeholder="2699"></div>
-          <div class="field"><label for="productCondition">成色 <span class="required">*</span></label><input id="productCondition" name="condition" type="text" maxlength="40" value="${esc(product?.condition || '')}" required placeholder="例如：95新"></div>
+          <div class="field"><label for="productCondition">成色</label><input id="productCondition" name="condition" type="text" maxlength="40" value="${esc(product?.condition || '')}" placeholder="例如：95新（不填则前台不显示）"></div>
           <div class="field"><label for="productColor">颜色</label><input id="productColor" name="color" type="text" maxlength="40" value="${esc(product?.color || '')}" placeholder="例如：远峰蓝"></div>
-          <div class="field"><label for="productStatus">商品状态 <span class="required">*</span></label><select id="productStatus" name="status"><option value="on_sale" ${product?.status === 'on_sale' || !product ? 'selected' : ''}>在售</option><option value="sold" ${product?.status === 'sold' ? 'selected' : ''}>已售出</option><option value="hidden" ${product?.status === 'hidden' ? 'selected' : ''}>隐藏</option></select></div>
+          <div class="field"><label for="productStatus">商品状态 <span class="required">*</span></label><select id="productStatus" name="status"><option value="on_sale" ${product?.status === 'on_sale' || !product ? 'selected' : ''}>在售</option><option value="paused" ${product?.status === 'paused' ? 'selected' : ''}>暂停出售</option><option value="restocking" ${product?.status === 'restocking' ? 'selected' : ''}>调货中</option><option value="sold" ${product?.status === 'sold' ? 'selected' : ''}>已售出</option><option value="hidden" ${product?.status === 'hidden' ? 'selected' : ''}>隐藏</option></select></div>
         </div>
+        <fieldset class="recommend-settings"><legend>游戏智能推荐</legend>
+          <label class="recommend-toggle"><input type="checkbox" name="smart_recommend" ${product?.smart_recommend ? 'checked' : ''}><span><strong>参与智能推荐</strong><small>仅“在售”商品会进入推荐，已售出、隐藏、暂停出售及调货中都会自动排除。</small></span></label>
+          <div class="field-grid">
+            <div class="field"><label for="productGameFps">和平精英最高帧率</label><select id="productGameFps" name="game_max_fps"><option value="0" ${!Number(product?.game_max_fps) ? 'selected' : ''}>其他 / 未设置</option>${[60,90,120].map(value => `<option value="${value}" ${Number(product?.game_max_fps) === value ? 'selected' : ''}>${value}帧</option>`).join('')}</select></div>
+            <div class="field"><label for="productGameQuality">推荐画质</label><select id="productGameQuality" name="game_quality">${['流畅','均衡','高清','HDR高清','其他'].map(value => `<option value="${value}" ${(product?.game_quality || '流畅') === value ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+          </div>
+        </fieldset>
         <div class="field"><label for="productConfiguration">配置</label><input id="productConfiguration" name="configuration" type="text" maxlength="160" value="${esc(product?.configuration || '')}" placeholder="例如：6GB 内存 · 256GB 存储"></div>
         <div class="field"><label for="productDescription">具体机况 <span class="required">*</span></label><textarea id="productDescription" name="description" maxlength="2000" required placeholder="填写功能、外观、维修情况等真实信息">${esc(product?.description || '')}</textarea></div>
         <div class="field"><label for="productOrder">展示顺序</label><input id="productOrder" name="display_order" type="number" inputmode="numeric" min="0" step="1" value="${esc(product?.display_order ?? nextOrder)}"><small>数字越小越靠前；已售出商品仍会自动排在所有在售商品后面。</small></div>
@@ -460,9 +469,12 @@
       configuration: String(form.get('configuration') || '').trim(),
       description: String(form.get('description') || '').trim(),
       status: String(form.get('status') || 'on_sale'),
+      smart_recommend: form.get('smart_recommend') === 'on',
+      game_max_fps: Math.max(0, Math.round(Number(form.get('game_max_fps')) || 0)),
+      game_quality: String(form.get('game_quality') || '').trim(),
       display_order: Math.max(0, Math.round(Number(form.get('display_order')) || 0))
     };
-    if (!record.model || !record.memory || !Number.isFinite(record.price) || record.price < 0 || !record.condition || !record.description) {
+    if (!record.model || !record.memory || !Number.isFinite(record.price) || record.price < 0 || !record.description) {
       errorNode.textContent = '请完整填写所有必填信息。'; return;
     }
 

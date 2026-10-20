@@ -103,6 +103,9 @@ const demoStockProducts = [
 const stockApi = window.XW_SUPABASE;
 let stockDataMode = stockApi?.isConfigured() ? 'loading' : 'demo';
 let stockProducts = stockDataMode === 'demo' ? structuredClone(demoStockProducts) : [];
+let dismissedSmartRecommendationPreset = '';
+let stockRefreshPromise = null;
+let smartRecommendationRequestId = 0;
 
 function stockStorageUrl(path) {
   return path ? stockApi.publicImageUrl(path) : '';
@@ -123,32 +126,47 @@ function mapStockProduct(row) {
     description: row.description,
     status: row.status === 'on_sale' ? 'in-stock' : row.status,
     order: Number(row.display_order || 0),
+    smartRecommend: Boolean(row.smart_recommend),
+    gameMaxFps: Number(row.game_max_fps || 0),
+    gameQuality: row.game_quality || '',
     mainImage,
     images: galleryImages.length ? galleryImages : (mainImage ? [mainImage] : []),
     isLive: true
   };
 }
 
-async function refreshStockProducts() {
+async function refreshStockProducts({ renderPage = true, updateRecommendation = true } = {}) {
   if (!stockApi?.isConfigured()) return;
-  try {
-    const rows = await stockApi.select('stock_products', {
-      select: 'id,model,memory,price,condition,color,configuration,description,status,display_order,main_image_path,gallery_image_paths,updated_at',
-      order: 'display_order.asc,created_at.asc'
-    });
-    stockProducts = rows.map(mapStockProduct);
-    stockDataMode = 'live';
-  } catch (error) {
-    console.error('现货数据加载失败：', error);
+  if (!stockRefreshPromise) {
+    stockRefreshPromise = (async () => {
+      try {
+        const rows = await stockApi.select('stock_products', {
+          select: '*',
+          order: 'display_order.asc,created_at.asc'
+        });
+        stockProducts = rows.map(mapStockProduct);
+        stockDataMode = 'live';
+        return true;
+      } catch (error) {
+        console.error('现货数据加载失败：', error);
+        return false;
+      } finally {
+        stockRefreshPromise = null;
+      }
+    })();
+  }
+  const loaded = await stockRefreshPromise;
+  if (!loaded && renderPage) {
     stockProducts = [];
     stockDataMode = 'error';
   }
-  render();
+  if (renderPage) render();
+  else if (updateRecommendation) refreshSmartRecommendationSlot();
 }
 
 function orderedStockProducts() {
   return stockProducts
-    .filter(product => product.status !== 'hidden')
+    .filter(product => product.status === 'in-stock' || product.status === 'sold')
     .sort((a, b) => Number(a.status === 'sold') - Number(b.status === 'sold') || a.order - b.order);
 }
 
@@ -161,8 +179,8 @@ function stockCard(product) {
   const sold = product.status === 'sold';
   const mainImage = product.mainImage || product.images[0];
   return `<button class="stock-card ${sold ? 'is-sold' : ''}" type="button" data-route="stock-detail?item=${encodeURIComponent(product.id)}" aria-label="查看${esc(product.model)}详情${sold ? '，已售出' : ''}">
-    <span class="stock-card-copy"><strong>${esc(product.model)}</strong><b>¥${product.price}</b></span>
     <span class="stock-card-image">${mainImage ? `<img src="${esc(mainImage)}" alt="${esc(product.model)}主图" width="720" height="900" loading="lazy" decoding="async">` : '<span class="stock-image-missing">图片待补充</span>'}${sold ? '<span class="sold-badge">已售出</span>' : ''}</span>
+    <span class="stock-card-copy"><strong>${esc(product.model)}</strong><span class="stock-card-meta"><b>¥${product.price}</b>${product.condition ? `<span class="condition-badge"><i aria-hidden="true"></i>${esc(product.condition)}</span>` : ''}</span></span>
   </button>`;
 }
 
@@ -256,7 +274,7 @@ function home() {
     </div>
     <section class="stock-home" aria-labelledby="stockHomeTitle">
       <div class="stock-section-head">
-        <div><p class="eyebrow">${stockDataMode === 'live' ? '库存实时更新' : '功能测试预览'}</p><h2 id="stockHomeTitle">现货手机</h2>${stockDataMode === 'live' ? '' : '<p class="stock-testing-note">该内容正在测试，敬请期待后续开放。</p>'}</div>
+        <div><p class="eyebrow">${stockDataMode === 'live' ? '库存实时更新' : '功能测试预览'}</p><h2 id="stockHomeTitle">现货手机</h2>${stockDataMode === 'live' ? '<p class="stock-warranty-note"><strong>购机享180天质保</strong><span>自签收之日起，非人为原因导致的功能故障，由小王负责售后处理。人为损坏、进水、摔碰及私自拆修不在质保范围内。</span></p>' : '<p class="stock-testing-note">该内容正在测试，敬请期待后续开放。</p>'}</div>
         <span>${products.filter(product => product.status === 'in-stock').length} 台有货</span>
       </div>
       ${stockDataMode === 'loading' ? '<div class="stock-empty"><strong>正在加载现货</strong><p>请稍候…</p></div>' : stockDataMode === 'error' ? '<div class="stock-empty"><strong>现货加载失败</strong><p>请稍后刷新，或先咨询代淘服务。</p></div>' : products.length ? `<div class="stock-grid">${products.map(stockCard).join('')}</div>` : '<div class="stock-empty"><strong>暂无现货</strong><p>欢迎咨询代淘服务。</p></div>'}
@@ -334,6 +352,110 @@ const presets = [
   '以上都不符合我的需求'
 ];
 
+const smartRecommendationPresets = [
+  { budget: 200, fps: 60 },
+  { budget: 400, fps: 90 },
+  { budget: 1000, fps: 120 }
+];
+
+function conditionScore(condition = '') {
+  const text = String(condition).trim();
+  const decimal = text.match(/(\d+(?:\.\d+)?)\s*成/);
+  if (decimal) return Number(decimal[1]);
+  const percent = text.match(/(\d{2,3})\s*新/);
+  if (percent) return Number(percent[1]) / 10;
+  const chineseDigits = { '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+  const chineseCondition = text.match(/([一二三四五六七八九])(?:点([一二三四五六七八九]))?成|([一二三四五六七八九])([一二三四五六七八九])新/);
+  if (chineseCondition) {
+    const whole = chineseDigits[chineseCondition[1] || chineseCondition[3]] || 0;
+    const fraction = chineseDigits[chineseCondition[2] || chineseCondition[4]] || 0;
+    return whole + fraction / 10;
+  }
+  return 0;
+}
+
+function bestStockRecommendation(presetIndex) {
+  const preset = smartRecommendationPresets[presetIndex];
+  if (!preset) return null;
+  const maximumPrice = preset.budget * 1.2;
+  return stockProducts
+    .filter(product => product.status === 'in-stock')
+    .filter(product => product.smartRecommend)
+    .filter(product => Number(product.gameMaxFps) >= preset.fps)
+    .filter(product => Number(product.price) <= maximumPrice)
+    .sort((a, b) => Math.abs(Number(a.price) - preset.budget) - Math.abs(Number(b.price) - preset.budget)
+      || conditionScore(b.condition) - conditionScore(a.condition)
+      || Number(a.order || 0) - Number(b.order || 0))[0] || null;
+}
+
+function smartRecommendationMarkup(presetIndex) {
+  const product = bestStockRecommendation(presetIndex);
+  if (!product) {
+    return `<div class="smart-recommend-empty" role="status"><span>暂时没有合适现货，继续让小王帮你找。</span><button type="button" data-dismiss-recommend>收起</button></div>`;
+  }
+  const mainImage = product.mainImage || product.images[0];
+  return `<section class="smart-recommend" aria-label="现货推荐">
+    <div class="smart-recommend-head"><div><strong>刚好有一台符合你需求的现货</strong><span>现货无需等待平台找机，确认后可以更快安排发货。</span></div><button type="button" data-dismiss-recommend aria-label="收起现货推荐">×</button></div>
+    <div class="smart-recommend-product">
+      <span class="smart-recommend-image">${mainImage ? `<img src="${esc(mainImage)}" alt="${esc(product.model)}主图" width="240" height="300" loading="lazy" decoding="async">` : '<span>暂无图片</span>'}</span>
+      <div class="smart-recommend-copy"><h3>${esc(product.detailModel || product.model)}</h3><p>${esc(product.capacity || '')}</p><div class="smart-recommend-price"><b>¥${product.price}</b>${product.condition ? `<span class="condition-badge"><i aria-hidden="true"></i>${esc(product.condition)}</span>` : ''}</div><p class="smart-recommend-game">和平精英：<strong>${esc(product.gameQuality || '以实际设置为准')}｜${Number(product.gameMaxFps)}帧</strong></p></div>
+    </div>
+    <div class="smart-recommend-actions"><button class="primary-btn" type="button" data-route="stock-detail?item=${encodeURIComponent(product.id)}">查看现货</button><button class="secondary-btn" type="button" data-dismiss-recommend>不喜欢，继续找小王代淘</button></div>
+  </section>`;
+}
+
+function smartRecommendationSignature(presetIndex) {
+  const product = bestStockRecommendation(presetIndex);
+  if (!product) return `empty:${presetIndex}`;
+  return ['product', presetIndex, product.id, product.status, product.price, product.condition, product.gameMaxFps, product.gameQuality, product.mainImage || product.images[0] || ''].join(':');
+}
+
+function cancelSmartRecommendationAnimations(slot) {
+  if (!slot) return;
+  [slot, ...slot.querySelectorAll('*')].forEach(element => element.getAnimations?.().forEach(animation => animation.cancel()));
+}
+
+function clearSmartRecommendationSlot(slot) {
+  if (!slot) return;
+  cancelSmartRecommendationAnimations(slot);
+  slot.classList.remove('active');
+  slot.replaceChildren();
+  delete slot.dataset.recommendSignature;
+}
+
+function bindSmartRecommendationActions(root = document) {
+  root.querySelectorAll('[data-dismiss-recommend]').forEach(button => button.addEventListener('click', () => {
+    const slot = button.closest('.smart-recommend-slot');
+    if (!slot) return;
+    dismissedSmartRecommendationPreset = state.taotao.preset;
+    clearSmartRecommendationSlot(slot);
+    document.querySelector('#presetConfirm')?.focus({ preventScroll: true });
+  }, { once: true }));
+}
+
+function updateSmartRecommendationSlot(presetIndex) {
+  if (presetIndex < 0 || presetIndex >= smartRecommendationPresets.length || dismissedSmartRecommendationPreset === state.taotao.preset) return false;
+  const slot = document.querySelector(`[data-recommend-slot="${presetIndex}"]`);
+  if (!slot) return false;
+  const signature = smartRecommendationSignature(presetIndex);
+  if (slot.dataset.recommendSignature === signature && slot.childElementCount === 1) {
+    slot.classList.add('active');
+    return false;
+  }
+  cancelSmartRecommendationAnimations(slot);
+  slot.innerHTML = smartRecommendationMarkup(presetIndex);
+  slot.dataset.recommendSignature = signature;
+  slot.classList.add('active');
+  bindSmartRecommendationActions(slot);
+  return true;
+}
+
+function refreshSmartRecommendationSlot() {
+  if (routeName() !== 'taotao-1') return;
+  const presetIndex = presets.indexOf(state.taotao.preset);
+  updateSmartRecommendationSlot(presetIndex);
+}
+
 function taotao1() {
   const t = state.taotao;
   const custom = t.preset === presets[3];
@@ -341,7 +463,7 @@ function taotao1() {
     ${steps(1, ['购机需求','服务确认','确认单'])}
     ${serviceHeading('我要找手机 · 第一步', '选择购机需求', '选择接近的需求，确认无误后再进入下一步。')}
     <div class="option-list" id="presetList">
-      ${presets.map((p,i)=>`<button class="option-card ${t.preset===p?'selected':''}" type="button" data-preset="${i}" aria-pressed="${t.preset===p?'true':'false'}"><span class="option-dot"></span><span class="option-copy"><strong>${p}</strong></span></button>`).join('')}
+      ${presets.map((p,i)=>{ const visible = t.preset===p && i < 3 && dismissedSmartRecommendationPreset !== p; return `<div class="preset-option-group"><button class="option-card ${t.preset===p?'selected':''}" type="button" data-preset="${i}" aria-pressed="${t.preset===p?'true':'false'}"><span class="option-dot"></span><span class="option-copy"><strong>${p}</strong></span></button><div class="smart-recommend-slot ${visible ? 'active' : ''}" data-recommend-slot="${i}" ${visible ? `data-recommend-signature="${esc(smartRecommendationSignature(i))}"` : ''}>${visible ? smartRecommendationMarkup(i) : ''}</div></div>`;}).join('')}
     </div>
     <div class="notice">帧率指《和平精英》手游目标帧率，实际表现取决于机型、游戏版本和设置，不保证所有机器都能达到对应帧率。</div>
     <div class="form-reveal ${custom?'open':''}" id="customForm" aria-hidden="${custom?'false':'true'}"><div>
@@ -537,8 +659,16 @@ function bindPage(route) {
     });
   }
   if (route === 'taotao-1') {
-    document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', () => {
-      const value = presets[Number(btn.dataset.preset)];
+    bindSmartRecommendationActions();
+    document.querySelectorAll('[data-preset]').forEach(btn => btn.addEventListener('click', async () => {
+      const presetIndex = Number(btn.dataset.preset);
+      const value = presets[presetIndex];
+      const switchedPreset = state.taotao.preset !== value;
+      const requestId = ++smartRecommendationRequestId;
+      if (switchedPreset) {
+        dismissedSmartRecommendationPreset = '';
+        document.querySelectorAll('[data-recommend-slot]').forEach(clearSmartRecommendationSlot);
+      }
       state.taotao.preset = value; saveState();
       document.querySelectorAll('[data-preset]').forEach(option => {
         const selected = option === btn;
@@ -553,6 +683,10 @@ function bindPage(route) {
       if (confirmButton) confirmButton.disabled = false;
       const error = document.querySelector('#presetError');
       if (error) error.textContent = '';
+      if (presetIndex >= smartRecommendationPresets.length) return;
+      await refreshStockProducts({ renderPage: false, updateRecommendation: false });
+      if (requestId !== smartRecommendationRequestId || state.taotao.preset !== value) return;
+      updateSmartRecommendationSlot(presetIndex);
     }));
     ['budget','model','focus','condition','other'].forEach(id => document.querySelector(`#${id}`)?.addEventListener('input', e => { state.taotao[id] = e.target.value; saveState(); }));
     document.querySelector('#presetConfirm')?.addEventListener('click', () => {
@@ -614,5 +748,14 @@ document.querySelector('#modalClose').addEventListener('click', closeImage);
 modal.addEventListener('click', e => { if (e.target === modal) closeImage(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeImage(); });
 window.addEventListener('hashchange', render);
+setInterval(() => {
+  const presetIndex = presets.indexOf(state.taotao.preset);
+  if (document.visibilityState === 'visible' && routeName() === 'taotao-1' && presetIndex >= 0 && presetIndex < smartRecommendationPresets.length) {
+    void refreshStockProducts({ renderPage: false });
+  }
+}, 12000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && routeName() === 'taotao-1') void refreshStockProducts({ renderPage: false });
+});
 render();
 refreshStockProducts();

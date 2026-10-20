@@ -13,11 +13,14 @@ create table if not exists public.stock_products (
   model text not null check (char_length(model) between 1 and 80),
   memory text not null check (char_length(memory) between 1 and 50),
   price integer not null check (price >= 0),
-  condition text not null check (char_length(condition) between 1 and 40),
+  condition text not null default '' check (char_length(condition) <= 40),
   color text not null default '' check (char_length(color) <= 40),
   configuration text not null default '' check (char_length(configuration) <= 160),
   description text not null check (char_length(description) between 1 and 2000),
-  status text not null default 'on_sale' check (status in ('on_sale', 'sold', 'hidden')),
+  status text not null default 'on_sale' check (status in ('on_sale', 'paused', 'restocking', 'sold', 'hidden')),
+  smart_recommend boolean not null default false,
+  game_max_fps integer not null default 0 check (game_max_fps between 0 and 240),
+  game_quality text not null default '' check (char_length(game_quality) <= 40),
   display_order integer not null default 0 check (display_order >= 0),
   main_image_path text not null,
   gallery_image_paths text[] not null default '{}'::text[] check (cardinality(gallery_image_paths) <= 9),
@@ -25,6 +28,20 @@ create table if not exists public.stock_products (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- 对已创建的正式数据库进行向后兼容升级。重复执行安全，不会覆盖现有商品。
+alter table public.stock_products add column if not exists smart_recommend boolean not null default false;
+alter table public.stock_products add column if not exists game_max_fps integer not null default 0;
+alter table public.stock_products add column if not exists game_quality text not null default '';
+alter table public.stock_products alter column condition set default '';
+alter table public.stock_products drop constraint if exists stock_products_condition_check;
+alter table public.stock_products add constraint stock_products_condition_check check (char_length(condition) <= 40);
+alter table public.stock_products drop constraint if exists stock_products_status_check;
+alter table public.stock_products add constraint stock_products_status_check check (status in ('on_sale', 'paused', 'restocking', 'sold', 'hidden'));
+alter table public.stock_products drop constraint if exists stock_products_game_max_fps_check;
+alter table public.stock_products add constraint stock_products_game_max_fps_check check (game_max_fps between 0 and 240);
+alter table public.stock_products drop constraint if exists stock_products_game_quality_check;
+alter table public.stock_products add constraint stock_products_game_quality_check check (char_length(game_quality) <= 40);
 
 -- 商品历史快照用于误删/误改后的恢复。该表不向匿名访客开放。
 create table if not exists public.stock_product_versions (
@@ -184,6 +201,9 @@ begin
     configuration = excluded.configuration,
     description = excluded.description,
     status = excluded.status,
+    smart_recommend = excluded.smart_recommend,
+    game_max_fps = excluded.game_max_fps,
+    game_quality = excluded.game_quality,
     display_order = excluded.display_order,
     main_image_path = excluded.main_image_path,
     gallery_image_paths = excluded.gallery_image_paths,
