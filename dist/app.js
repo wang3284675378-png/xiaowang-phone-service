@@ -131,6 +131,8 @@ function mapStockProduct(row) {
     gameQuality: row.game_quality || '',
     mainImage,
     images: galleryImages.length ? galleryImages : (mainImage ? [mainImage] : []),
+    galleryLoaded: Array.isArray(row.gallery_image_paths),
+    galleryLoading: false,
     isLive: true
   };
 }
@@ -141,7 +143,7 @@ async function refreshStockProducts({ renderPage = true, updateRecommendation = 
     stockRefreshPromise = (async () => {
       try {
         const rows = await stockApi.select('stock_products', {
-          select: '*',
+          select: 'id,model,memory,price,condition,color,configuration,description,status,display_order,smart_recommend,game_max_fps,game_quality,main_image_path',
           order: 'display_order.asc,created_at.asc'
         });
         stockProducts = rows.map(mapStockProduct);
@@ -162,6 +164,28 @@ async function refreshStockProducts({ renderPage = true, updateRecommendation = 
   }
   if (renderPage) render();
   else if (updateRecommendation) refreshSmartRecommendationSlot();
+}
+
+async function refreshStockProductGallery(productId) {
+  const product = stockProducts.find(item => item.id === productId);
+  if (!product?.isLive || product.galleryLoaded || product.galleryLoading || !stockApi?.isConfigured()) return;
+  product.galleryLoading = true;
+  try {
+    const rows = await stockApi.select('stock_products', {
+      select: 'gallery_image_paths',
+      id: `eq.${productId}`,
+      limit: '1'
+    });
+    const galleryImages = (rows[0]?.gallery_image_paths || []).map(stockStorageUrl).filter(Boolean).slice(0, 9);
+    product.images = galleryImages.length ? galleryImages : (product.mainImage ? [product.mainImage] : []);
+    product.galleryLoaded = true;
+  } catch (error) {
+    product.galleryLoaded = true;
+    console.error('现货实拍图片加载失败：', error);
+  } finally {
+    product.galleryLoading = false;
+    if (routeName() === 'stock-detail' && stockProductId() === productId) render();
+  }
 }
 
 function orderedStockProducts() {
@@ -633,6 +657,7 @@ function render() {
   if (route !== 'stock-detail') unlockStockDetailScroll();
   app.innerHTML = routes[route]();
   bindPage(route);
+  if (route === 'stock-detail') void refreshStockProductGallery(stockProductId());
   topAfterRender();
 }
 

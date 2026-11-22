@@ -54,6 +54,10 @@ if (!html.includes("./styles.css") || !html.includes("./app.js") || !html.includ
   throw new Error("The production entry page is missing its stylesheet or JavaScript reference.");
 }
 
+if (!javascript.includes("select: 'id,model,memory,price,condition,color,configuration,description,status,display_order,smart_recommend,game_max_fps,game_quality,main_image_path'") || !javascript.includes("select: 'gallery_image_paths'") || !javascript.includes("function refreshStockProductGallery")) {
+  throw new Error("The public inventory request should load list fields first and fetch the selected product gallery on demand.");
+}
+
 for (const requiredDeferredScript of [
   '<script src="./supabase-config.js" defer>',
   '<script src="./supabase-client.js" defer>',
