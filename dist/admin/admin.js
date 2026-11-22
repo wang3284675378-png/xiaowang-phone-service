@@ -9,8 +9,8 @@
   const acceptedImageTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
   const maxSourceImageBytes = 25 * 1024 * 1024;
   const maxUploadImageBytes = 8 * 1024 * 1024;
-  const targetImageBytes = 2.5 * 1024 * 1024;
-  const maxImageDimension = 1800;
+  const targetImageBytes = 900 * 1024;
+  const maxImageDimension = 1400;
   const loginGuardKey = 'xw-admin-login-guard-v1';
   const state = {
     session: null,
@@ -149,7 +149,7 @@
     const groupIndex = sameStatus.findIndex(item => item.id === product.id);
     const image = imageUrl(product.main_image_path);
     return `<article class="product-card" data-product-id="${esc(product.id)}">
-      <div class="product-thumb">${image ? `<img src="${esc(image)}" alt="${esc(product.model)}主图">` : '<span class="product-thumb-empty">尚未上传主图</span>'}</div>
+      <div class="product-thumb">${image ? `<img src="${esc(image)}" alt="${esc(product.model)}主图" width="80" height="80" loading="lazy" decoding="async">` : '<span class="product-thumb-empty">尚未上传主图</span>'}</div>
       <div class="product-body">
         <div class="product-title-row"><h3>${esc(product.model)} ${esc(product.memory)}</h3><span class="status-pill ${esc(product.status)}">${statusText(product.status)}</span></div>
         <div class="product-price">¥${Number(product.price || 0)}</div>
@@ -283,7 +283,7 @@
         <div class="field"><label for="productConfiguration">配置</label><input id="productConfiguration" name="configuration" type="text" maxlength="160" value="${esc(product?.configuration || '')}" placeholder="例如：6GB 内存 · 256GB 存储"></div>
         <div class="field"><label for="productDescription">具体机况 <span class="required">*</span></label><textarea id="productDescription" name="description" maxlength="2000" required placeholder="填写功能、外观、维修情况等真实信息">${esc(product?.description || '')}</textarea></div>
         <div class="field"><label for="productOrder">展示顺序</label><input id="productOrder" name="display_order" type="number" inputmode="numeric" min="0" step="1" value="${esc(product?.display_order ?? nextOrder)}"><small>数字越小越靠前；已售出商品仍会自动排在所有在售商品后面。</small></div>
-        <section class="image-section"><h3>商品主图 <span class="required">*</span></h3><input class="file-input" id="mainImageInput" type="file" accept="image/jpeg,image/png,image/webp"><small>支持 JPG、PNG、WebP；选择后会在手机本地自动压缩，单张原图最大 25MB。</small><div class="image-previews" id="mainImagePreview"></div></section>
+        <section class="image-section"><h3>商品主图 <span class="required">*</span></h3><input class="file-input" id="mainImageInput" type="file" accept="image/jpeg,image/png,image/webp"><small>支持 JPG、PNG、WebP；选择后会在手机本地压缩至最长边 1400px、单张约 900KB，单张原图最大 25MB。</small><div class="image-previews" id="mainImagePreview"></div></section>
         <section class="image-section"><h3>实拍图片（最多9张）</h3><input class="file-input" id="galleryInput" type="file" accept="image/jpeg,image/png,image/webp" multiple><small>可一次选择多张；系统会去重、压缩，并最多同时上传3张。</small><div class="image-previews" id="galleryPreview"></div></section>
         <div class="upload-progress" id="uploadProgress" role="status" aria-live="polite" hidden><div class="upload-progress-track"><span id="uploadProgressBar"></span></div><span id="uploadProgressText">准备图片…</span></div>
         <p class="form-error" id="productError" role="alert"></p>
@@ -350,7 +350,7 @@
   function renderImagePreviews() {
     const mainUrl = state.mainFile?.url || imageUrl(state.mainImagePath);
     document.querySelector('#mainImagePreview').innerHTML = mainUrl ? `<div class="image-preview"><img src="${esc(mainUrl)}" alt="主图预览"><button type="button" data-remove-main aria-label="删除主图">×</button></div>` : '';
-    const existing = state.retainedGalleryPaths.map((path, index) => `<div class="image-preview"><img src="${esc(imageUrl(path))}" alt="实拍图${index + 1}"><button type="button" data-remove-path="${esc(path)}" aria-label="删除这张图片">×</button></div>`);
+    const existing = state.retainedGalleryPaths.map((path, index) => `<div class="image-preview"><img src="${esc(imageUrl(path))}" alt="实拍图${index + 1}" loading="lazy" decoding="async"><button type="button" data-remove-path="${esc(path)}" aria-label="删除这张图片">×</button></div>`);
     const added = state.galleryFiles.map((item, index) => `<div class="image-preview"><img src="${esc(item.url)}" alt="新实拍图${state.retainedGalleryPaths.length + index + 1}"><button type="button" data-remove-file="${esc(item.key)}" aria-label="删除这张图片">×</button></div>`);
     document.querySelector('#galleryPreview').innerHTML = [...existing, ...added].join('');
   }

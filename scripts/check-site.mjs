@@ -13,8 +13,12 @@ const requiredFiles = [
   "supabase/schema.sql",
   "dist/assets/business-license.jpg",
   "dist/assets/video-evidence-rules.jpg",
+  "dist/assets/video-evidence-rules.webp",
   "dist/assets/xiaowang-portrait.jpg",
+  "dist/assets/xiaowang-portrait.webp",
   "dist/assets/xiaowang-yunyun-collaboration.jpg",
+  "dist/assets/xiaowang-yunyun-collaboration.webp",
+  "dist/assets/business-license.webp",
   "dist/assets/payment-wechat.jpg",
   "dist/assets/payment-alipay.png",
   "dist/assets/stock-demo-blue-front.svg",
@@ -48,6 +52,16 @@ for (const [name, source] of Object.entries({ html, css, javascript })) {
 
 if (!html.includes("./styles.css") || !html.includes("./app.js") || !html.includes("./supabase-client.js")) {
   throw new Error("The production entry page is missing its stylesheet or JavaScript reference.");
+}
+
+for (const requiredDeferredScript of [
+  '<script src="./supabase-config.js" defer>',
+  '<script src="./supabase-client.js" defer>',
+  '<script src="./app.js" defer>',
+]) {
+  if (!html.includes(requiredDeferredScript)) {
+    throw new Error(`The public page is missing ordered deferred script loading: ${requiredDeferredScript}`);
+  }
 }
 
 if (!adminHtml.includes("./admin.css") || !adminHtml.includes("./admin.js") || !adminHtml.includes("../supabase-client.js")) {

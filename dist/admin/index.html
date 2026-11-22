@@ -9,6 +9,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://zkyrclewhdizgvtfhhzq.supabase.co; connect-src 'self' https://zkyrclewhdizgvtfhhzq.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; worker-src 'none'; upgrade-insecure-requests">
   <title>现货管理后台｜小王混剪</title>
   <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://zkyrclewhdizgvtfhhzq.supabase.co" crossorigin>
   <link rel="stylesheet" href="./admin.css">
 </head>
 <body>
@@ -16,8 +17,8 @@
     <div class="admin-loading" role="status">正在加载现货管理后台…</div>
   </main>
   <div class="admin-toast" id="adminToast" role="status" aria-live="polite" hidden></div>
-  <script src="../supabase-config.js"></script>
-  <script src="../supabase-client.js"></script>
+  <script src="../supabase-config.js" defer></script>
+  <script src="../supabase-client.js" defer></script>
   <script src="./admin.js" defer></script>
 </body>
 </html>
