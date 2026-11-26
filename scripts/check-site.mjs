@@ -58,6 +58,32 @@ if (!javascript.includes("select: 'id,model,memory,price,condition,color,configu
   throw new Error("The public inventory request should load list fields first and fetch the selected product gallery on demand.");
 }
 
+for (const requiredPurchaseNoticeCopy of [
+  "'purchase-notice': purchaseNotice",
+  '发货时间',
+  '48小时内发货',
+  'JDX或JDVB',
+  '顺丰以<strong>SF</strong>开头',
+  '小王帮忙验机',
+  '不拆机',
+  '七天无理由退货',
+  '依法享有的退换货权利不受影响',
+  '180天非人为功能故障质保',
+  '尽量保留开箱视频',
+  '防骗安全提醒',
+  '诱导转账',
+]) {
+  if (!javascript.includes(requiredPurchaseNoticeCopy)) {
+    throw new Error(`The purchase-notice page is missing required content: ${requiredPurchaseNoticeCopy}`);
+  }
+}
+
+for (const removedNoticeInteraction of ['purchaseNoticeChecked', 'purchaseNoticeConfirmed', 'purchaseNoticeAgree', 'purchaseNoticeConfirm', 'auction-times']) {
+  if (javascript.includes(removedNoticeInteraction)) {
+    throw new Error(`The purchase-notice page still contains removed content or interaction: ${removedNoticeInteraction}`);
+  }
+}
+
 for (const requiredDeferredScript of [
   '<script src="./supabase-config.js" defer>',
   '<script src="./supabase-client.js" defer>',

@@ -21,7 +21,7 @@ function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 function esc(value = '') { return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 function routeName() { return (location.hash.slice(1) || 'home').split('?')[0]; }
 function go(route) { if (`#${route}` === location.hash) render(); else location.hash = route; }
-function topAfterRender() { requestAnimationFrame(() => { window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); app.focus({ preventScroll: true }); }); }
+function topAfterRender() { requestAnimationFrame(() => { window.scrollTo({ top: 0, behavior: 'instant' }); app.focus({ preventScroll: true }); }); }
 
 const backButton = (route, label = '返回上一步') => `<button class="secondary-btn" type="button" data-route="${route}">${label}</button>`;
 const steps = (active, labels) => `<div class="stepper" aria-label="服务步骤">${labels.map((x,i)=>`<div class="step ${i + 1 <= active ? 'active' : ''}">${i + 1}. ${x}</div>`).join('')}</div>`;
@@ -282,7 +282,7 @@ function bindInspectionSelector({ service, model, agreementId, confirmId, errorI
 
 function home() {
   const products = orderedStockProducts();
-  return `<section class="page">
+  return `<section class="page home-page">
     <div class="hero">
       <div class="hero-badge">服务流程公开 · 先确认再付款</div>
       <p class="eyebrow">欢迎来到小王混剪</p>
@@ -290,11 +290,16 @@ function home() {
       <p class="lead">请选择您需要的服务。</p>
       <p class="root-notice">温馨提示：本店暂不提供 ROOT 刷机服务，如有相关需求，建议咨询其他代淘主播。</p>
     </div>
-    <div class="service-grid">
-      <button class="service-card" type="button" data-route="taotao-1"><span class="icon">⌕</span><strong>我要找手机</strong><span>告诉我预算和需求，由小王协助寻找</span></button>
-      <button class="service-card" type="button" data-route="daipai-1"><span class="icon">✓</span><strong>我已选好手机，需要代拍</strong><span>已在拍机堂选好指定机器</span></button>
-      <button class="service-card" type="button" data-route="about"><span class="icon">i</span><strong>我想先了解一下</strong><span>查看服务、资质、流程与防骗指南</span></button>
-      <button class="service-card payment-service-card" type="button" data-route="quick-pay"><span class="icon payment-icon">¥</span><strong>快捷付款</strong><span>微信 / 支付宝扫码支付</span></button>
+    <div class="home-service-layout">
+      <div class="service-primary-stack" aria-label="主要服务">
+        <button class="service-card" type="button" data-route="taotao-1"><span class="icon">⌕</span><strong>我要找手机</strong><span>告诉我预算和需求，由小王协助寻找</span></button>
+        <button class="service-card" type="button" data-route="daipai-1"><span class="icon">✓</span><strong>我已选好手机，需要代拍</strong><span>已在拍机堂选好指定机器</span></button>
+        <button class="service-card" type="button" data-route="about"><span class="icon">i</span><strong>我想先了解一下</strong><span>查看服务、资质、流程与防骗指南</span></button>
+      </div>
+      <div class="service-utility-row" aria-label="快捷服务">
+        <button class="service-card service-utility-card payment-service-card" type="button" data-route="quick-pay"><span class="icon payment-icon">¥</span><strong>快捷付款</strong></button>
+        <button class="service-card service-utility-card purchase-notice-entry" type="button" data-route="purchase-notice"><span class="icon notice-phone-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><rect x="6.5" y="3" width="11" height="18" rx="2.5"/><path d="M11 17.5h2"/></svg></span><strong>购机须知</strong></button>
+      </div>
     </div>
     <section class="stock-home" aria-labelledby="stockHomeTitle">
       <div class="stock-section-head">
@@ -633,6 +638,26 @@ function quickPay() {
   </section>`;
 }
 
+function purchaseNotice() {
+  return `<section class="page purchase-notice-page">
+    <header class="purchase-notice-topbar"><button class="purchase-notice-back" type="button" data-route="home" aria-label="返回首页">‹ <span>返回</span></button><h1>购机须知</h1><span aria-hidden="true"></span></header>
+    <div class="purchase-notice-content">
+      <div class="purchase-notice-list">
+        <section class="notice-tile notice-shipping" aria-labelledby="noticeShipping"><div class="notice-title-line"><span class="notice-icon" aria-hidden="true">📦</span><h2 id="noticeShipping">发货时间</h2></div><p>手机购买后预计<strong>48小时内发货</strong>，特殊情况另行通知；发货后小王会及时发送快递单号。</p></section>
+        <section class="notice-tile notice-tracking" aria-labelledby="noticeTracking"><div class="notice-title-line"><span class="notice-icon" aria-hidden="true">🚚</span><h2 id="noticeTracking">物流查询</h2></div><p>京东单号以<strong>JDX或JDVB</strong>开头，顺丰以<strong>SF</strong>开头；复制单号至对应快递官方App查询。需验证手机号尾号，请联系小王。</p></section>
+        <section class="notice-tile notice-inspection" aria-labelledby="noticeInspection"><div class="notice-title-line"><span class="notice-icon" aria-hidden="true">🔍</span><h2 id="noticeInspection">小王帮忙验机</h2></div><p>仅做基础外观及功能检查，<strong>不拆机</strong>；验后顺丰到付转寄，非偏远地区运费预计20元以内，预计4～5天送达，具体以实际为准。</p></section>
+        <section class="notice-tile notice-returns" aria-labelledby="noticeReturns"><div class="notice-title-line"><span class="notice-icon" aria-hidden="true">🔄</span><h2 id="noticeReturns">退货须知</h2></div><p>依法不适用七天无理由退货且已提前确认的商品，不支持无理由退货；<strong>依法享有的退换货权利不受影响。</strong></p></section>
+        <section class="notice-tile notice-aftersale" aria-labelledby="noticeAftersale"><div class="notice-title-line"><span class="notice-icon" aria-hidden="true">🛠️</span><h2 id="noticeAftersale">售后处理</h2></div><p>小王自有库存现货自签收起享<strong>180天非人为功能故障质保</strong>（人为损坏、进水、摔碰及私自拆修除外）。代淘/代拍如有未告知故障或描述不符，请及时联系小王并尽量保留开箱视频。</p></section>
+      </div>
+      <section class="notice-tile fraud-rule" aria-labelledby="noticeSafety"><div class="notice-title-line"><span class="notice-icon" aria-hidden="true">🛡️</span><h2 id="noticeSafety">防骗安全提醒</h2></div><p>请勿轻信直播间或评论区主动关注、私信您或要求您回复私信的陌生账号，谨防冒充小王本人及诱导转账。请主动通过「小王混剪」官方主页联系本人。</p></section>
+      <nav class="notice-actions" aria-label="服务入口">
+        <button class="secondary-btn" type="button" data-route="daipai-1">代拍</button>
+        <button class="secondary-btn" type="button" data-route="taotao-1">代淘</button>
+      </nav>
+    </div>
+  </section>`;
+}
+
 function about() {
   return `<section class="page">
     <div class="hero" style="padding-top:20px"><p class="eyebrow">先了解，再决定</p><h1>关于小王的<br>代淘与代拍服务</h1><p class="lead">把流程、费用和风险讲清楚，再开始服务。</p></div>
@@ -648,13 +673,14 @@ function about() {
   </section>`;
 }
 
-const routes = { home, 'stock-detail': stockDetail, 'taotao-1': taotao1, 'taotao-2': taotao2, 'taotao-3': taotao3, 'daipai-1': daipai1, 'daipai-2': daipai2, 'daipai-3': daipai3, 'quick-pay': quickPay, about };
+const routes = { home, 'stock-detail': stockDetail, 'taotao-1': taotao1, 'taotao-2': taotao2, 'taotao-3': taotao3, 'daipai-1': daipai1, 'daipai-2': daipai2, 'daipai-3': daipai3, 'quick-pay': quickPay, about, 'purchase-notice': purchaseNotice };
 
 function render() {
   const route = routeName();
   if (!routes[route]) return go('home');
   if (route === 'daipai-3' && !canGenerateDaipai()) return go('daipai-2');
   if (route !== 'stock-detail') unlockStockDetailScroll();
+  document.body.classList.toggle('purchase-notice-open', route === 'purchase-notice');
   app.innerHTML = routes[route]();
   bindPage(route);
   if (route === 'stock-detail') void refreshStockProductGallery(stockProductId());
@@ -756,7 +782,7 @@ document.addEventListener('click', e => {
   if (scrollTarget) {
     e.preventDefault();
     const section = document.querySelector(`#${scrollTarget.dataset.scrollTarget}`);
-    section?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    section?.scrollIntoView({ behavior: 'instant', block: 'start' });
     return;
   }
   const routeTarget = e.target.closest('[data-route]');
@@ -768,7 +794,7 @@ document.addEventListener('click', e => {
 const modal = document.querySelector('#imageModal');
 const modalImage = document.querySelector('#modalImage');
 function openImage(src, alt) { modalImage.src = src; modalImage.alt = alt || '查看大图'; modal.hidden = false; document.body.style.overflow = 'hidden'; document.querySelector('#modalClose').focus(); }
-function closeImage() { modal.hidden = true; modalImage.src = ''; document.body.style.overflow = ''; }
+function closeImage() { modal.hidden = true; document.body.style.overflow = ''; }
 document.querySelector('#modalClose').addEventListener('click', closeImage);
 modal.addEventListener('click', e => { if (e.target === modal) closeImage(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.hidden) closeImage(); });
